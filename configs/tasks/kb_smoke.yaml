@@ -1,0 +1,5 @@
+name: kb_smoke
+tasks:
+  - alias: L1_P25_Swish
+    level: 1
+    problem_id: 25

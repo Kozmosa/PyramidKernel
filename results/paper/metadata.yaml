@@ -1,0 +1,23 @@
+name: pyramidkernel_paper_results
+source_commit: 548d3658ecc9852526b1a27e4577ab85d9a6719c
+benchmark:
+  name: KernelBench
+  source: https://github.com/ScalingIntelligence/KernelBench
+  commit: 423217d9fda91e0c2d67e4a43bf62f96f6d104f1
+  tasks: 250
+  attempts_per_task: 10
+main_hardware:
+  gpu: NVIDIA RTX 4090
+cross_system_hardware:
+  gpu: NVIDIA A100 80GB
+references:
+  - torch_eager
+metrics:
+  success_at_10: 0.932
+  fast1_at_10: 0.84
+  geomean_speedup_solved: 1.4043606608577315
+  arithmetic_mean_speedup_solved: 5.885565934814383
+notes:
+  - Aggregate tables are preserved from the accepted paper run.
+  - Re-run and revalidate on the target hardware before treating numbers as an exact reproduction.
+  - Speedup aggregates are over solved tasks; correctness metrics use all 250 tasks.

@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use PyramidKernel, please cite the accompanying paper. Replace the author and identifier fields before the first public release."
+title: "PyramidKernel: From Broad Hypotheses to Bottleneck-Focused Refinement for LLM-Driven GPU Kernel Optimization"
+type: software
+version: 0.1.0
+date-released: 2026-09-02
+authors:
+  - name: "PyramidKernel Authors"
+keywords:
+  - GPU kernel optimization
+  - large language models
+  - CUDA
+  - agentic systems
+abstract: "A stage-structured multi-agent framework for execution-grounded GPU kernel optimization."
+license: Apache-2.0

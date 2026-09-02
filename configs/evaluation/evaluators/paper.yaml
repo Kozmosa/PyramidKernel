@@ -1,0 +1,8 @@
+# Evaluator layer.
+# This one keeps the full set of official reference baselines.
+description: Paper-style evaluator with all official reference modes.
+kernelbench_evaluator: paper
+reference_modes:
+  - torch_eager
+  - torch_compile_default
+  - torch_compile_max_autotune
