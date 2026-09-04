@@ -21,10 +21,10 @@ Options:
   -h, --help                Show this help
 
 Environment helpers:
-  KERNELWEAVER_CONDA_ENV    Conda env name to activate before launch
-  KERNELWEAVER_CONDA_PREFIX Conda env prefix to activate before launch
-  KERNELWEAVER_CONDA_SH     Path to conda.sh if it is not under \$HOME/miniconda3
-  KERNELWEAVER_ENV_FILE     Env file passed to '--env-file'
+  PYRAMIDKERNEL_CONDA_ENV    Conda env name to activate before launch
+  PYRAMIDKERNEL_CONDA_PREFIX Conda env prefix to activate before launch
+  PYRAMIDKERNEL_CONDA_SH     Path to conda.sh if it is not under \$HOME/miniconda3
+  PYRAMIDKERNEL_ENV_FILE     Env file passed to '--env-file'
 
 Notes:
   - This wrapper avoids 'conda run ... | tee ...' because that pattern is brittle for long CUDA jobs.
@@ -32,7 +32,7 @@ Notes:
 EOF
 }
 
-REPO_ROOT="$(kw_repo_root "$SCRIPT_PATH")"
+REPO_ROOT="$(pk_repo_root "$SCRIPT_PATH")"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 EXPERIMENT="${EXPERIMENT:-main}"
 TASK_CONFIG="${TASK_CONFIG:-}"
@@ -84,12 +84,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-OUTPUT_DIR="$(kw_abs_path "$REPO_ROOT" "$OUTPUT_DIR")"
-kw_prepare_output_dir "$OUTPUT_DIR" "$ALLOW_REUSE"
+OUTPUT_DIR="$(pk_abs_path "$REPO_ROOT" "$OUTPUT_DIR")"
+pk_prepare_output_dir "$OUTPUT_DIR" "$ALLOW_REUSE"
 
-COMMAND=("$PYTHON_BIN" -u stark_cli.py run-kernelbench-batch --experiment "$EXPERIMENT" --output-dir "$OUTPUT_DIR")
-if [[ -n "${KERNELWEAVER_ENV_FILE:-}" ]]; then
-  COMMAND+=(--env-file "$KERNELWEAVER_ENV_FILE")
+COMMAND=("$PYTHON_BIN" -u -m pyramidkernel.cli run-kernelbench-batch --experiment "$EXPERIMENT" --output-dir "$OUTPUT_DIR")
+if [[ -n "${PYRAMIDKERNEL_ENV_FILE:-}" ]]; then
+  COMMAND+=(--env-file "$PYRAMIDKERNEL_ENV_FILE")
 fi
 if [[ -n "$TASK_CONFIG" ]]; then
   COMMAND+=(--task-config "$TASK_CONFIG")
@@ -98,17 +98,17 @@ COMMAND+=("${EXTRA_ARGS[@]}")
 
 LAUNCH_SCRIPT="$OUTPUT_DIR/start_batch.sh"
 LOG_PATH="$OUTPUT_DIR/launcher.log"
-kw_write_launch_script "$LAUNCH_SCRIPT" "$REPO_ROOT" COMMAND
+pk_write_launch_script "$LAUNCH_SCRIPT" "$REPO_ROOT" COMMAND
 
 if [[ "$DETACH" == "1" ]]; then
-  SESSION_NAME="${SESSION_NAME:-kw-$(basename "$OUTPUT_DIR")}"
-  SESSION_NAME="$(kw_unique_tmux_session "$SESSION_NAME")"
+  SESSION_NAME="${SESSION_NAME:-pyramidkernel-$(basename "$OUTPUT_DIR")}"
+  SESSION_NAME="$(pk_unique_tmux_session "$SESSION_NAME")"
   tmux new-session -d -s "$SESSION_NAME" "bash $(printf '%q' "$LAUNCH_SCRIPT") >> $(printf '%q' "$LOG_PATH") 2>&1"
-  echo "[KernelWeaver] Started detached batch run."
-  echo "[KernelWeaver] session: $SESSION_NAME"
-  echo "[KernelWeaver] log: $LOG_PATH"
-  echo "[KernelWeaver] attach: tmux attach -t $SESSION_NAME"
-  echo "[KernelWeaver] tail: tail -f $LOG_PATH"
+  echo "[PyramidKernel] Started detached batch run."
+  echo "[PyramidKernel] session: $SESSION_NAME"
+  echo "[PyramidKernel] log: $LOG_PATH"
+  echo "[PyramidKernel] attach: tmux attach -t $SESSION_NAME"
+  echo "[PyramidKernel] tail: tail -f $LOG_PATH"
 else
   exec bash "$LAUNCH_SCRIPT"
 fi

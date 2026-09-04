@@ -2,20 +2,20 @@ import shutil
 import unittest
 from pathlib import Path
 
-from stark.core.workflow import _attempt_mode_for_selected_node, run_stark
-from stark.demo import build_demo_tasks
-from stark.core.tree import TreeMemory
-from stark.evaluation import DemoEvaluator
-from stark.io import load_run, save_run
-from stark.feedback.schema import ChampionState, FeedbackState
-from stark.models import SearchNode, StarkConfig
-from stark.providers import MockProvider
+from pyramidkernel.core.workflow import _attempt_mode_for_selected_node, run_pyramidkernel
+from pyramidkernel.demo import build_demo_tasks
+from pyramidkernel.core.tree import TreeMemory
+from pyramidkernel.evaluation import DemoEvaluator
+from pyramidkernel.io import load_run, save_run
+from pyramidkernel.feedback.schema import ChampionState, FeedbackState
+from pyramidkernel.models import SearchNode, PyramidKernelConfig
+from pyramidkernel.providers import MockProvider
 
 
 class FeedbackStateTests(unittest.TestCase):
     def test_run_persists_feedback_state(self):
         task = build_demo_tasks()[0]
-        config = StarkConfig(
+        config = PyramidKernelConfig(
             max_attempts=2,
             benchmark_loops=1,
             warmup_loops=0,
@@ -24,7 +24,7 @@ class FeedbackStateTests(unittest.TestCase):
             evaluator_profile="quick",
             measurement_profile="quick",
         )
-        result = run_stark(task, config, MockProvider(), DemoEvaluator())
+        result = run_pyramidkernel(task, config, MockProvider(), DemoEvaluator())
         self.assertIsNotNone(result.feedback_state)
         self.assertGreaterEqual(result.feedback_state.total_attempts, 1)
         self.assertIn(result.feedback_state.phase, {"exploration", "exploitation", "refinement"})
@@ -51,17 +51,46 @@ class FeedbackStateTests(unittest.TestCase):
 class WorkflowSelectionModeTests(unittest.TestCase):
     def test_root_selection_stays_explore(self):
         code = "# <<<IMPROVE:cuda_cu>>>\npass\n# <<<END_IMPROVE>>>\n"
-        config = StarkConfig(max_attempts=10)
-        root = SearchNode(node_id="root", parent_id=None, depth=0, code=code, origin="root", compile_ok=True, correct=True, node_status="correct")
+        config = PyramidKernelConfig(max_attempts=10)
+        root = SearchNode(
+            node_id="root",
+            parent_id=None,
+            depth=0,
+            code=code,
+            origin="root",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+        )
         tree = TreeMemory(root, config)
         mode = _attempt_mode_for_selected_node(tree, "root", "exploit_best_score", FeedbackState())
         self.assertEqual(mode, "explore")
 
     def test_non_root_selection_stays_explore_while_root_is_champion(self):
         code = "# <<<IMPROVE:cuda_cu>>>\npass\n# <<<END_IMPROVE>>>\n"
-        config = StarkConfig(max_attempts=10)
-        root = SearchNode(node_id="root", parent_id=None, depth=0, code=code, origin="root", compile_ok=True, correct=True, node_status="correct", speedup=0.99)
-        child = SearchNode(node_id="n1", parent_id="root", depth=1, code=code, origin="plan_code", compile_ok=True, correct=True, node_status="correct", speedup=0.85)
+        config = PyramidKernelConfig(max_attempts=10)
+        root = SearchNode(
+            node_id="root",
+            parent_id=None,
+            depth=0,
+            code=code,
+            origin="root",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=0.99,
+        )
+        child = SearchNode(
+            node_id="n1",
+            parent_id="root",
+            depth=1,
+            code=code,
+            origin="plan_code",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=0.85,
+        )
         root.child_ids = ["n1"]
         tree = TreeMemory(root, config)
         tree.nodes = {"root": root, "n1": child}
@@ -75,10 +104,40 @@ class WorkflowSelectionModeTests(unittest.TestCase):
 
     def test_non_root_selection_stays_explore_when_champion_is_not_above_baseline(self):
         code = "# <<<IMPROVE:cuda_cu>>>\npass\n# <<<END_IMPROVE>>>\n"
-        config = StarkConfig(max_attempts=10)
-        root = SearchNode(node_id="root", parent_id=None, depth=0, code=code, origin="root", compile_ok=True, correct=True, node_status="correct", speedup=1.0)
-        champion = SearchNode(node_id="n1", parent_id="root", depth=1, code=code, origin="plan_code", compile_ok=True, correct=True, node_status="correct", speedup=0.97)
-        child = SearchNode(node_id="n2", parent_id="n1", depth=2, code=code, origin="plan_code", compile_ok=True, correct=True, node_status="correct", speedup=0.95)
+        config = PyramidKernelConfig(max_attempts=10)
+        root = SearchNode(
+            node_id="root",
+            parent_id=None,
+            depth=0,
+            code=code,
+            origin="root",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=1.0,
+        )
+        champion = SearchNode(
+            node_id="n1",
+            parent_id="root",
+            depth=1,
+            code=code,
+            origin="plan_code",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=0.97,
+        )
+        child = SearchNode(
+            node_id="n2",
+            parent_id="n1",
+            depth=2,
+            code=code,
+            origin="plan_code",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=0.95,
+        )
         root.child_ids = ["n1"]
         champion.child_ids = ["n2"]
         tree = TreeMemory(root, config)
@@ -93,10 +152,39 @@ class WorkflowSelectionModeTests(unittest.TestCase):
 
     def test_champion_node_with_children_maps_to_best_lineage_push(self):
         code = "# <<<IMPROVE:cuda_cu>>>\npass\n# <<<END_IMPROVE>>>\n"
-        config = StarkConfig(max_attempts=10)
-        root = SearchNode(node_id="root", parent_id=None, depth=0, code=code, origin="root", compile_ok=True, correct=True, node_status="correct")
-        champion = SearchNode(node_id="n5", parent_id="root", depth=1, code=code, origin="plan_code", compile_ok=True, correct=True, node_status="correct", speedup=4.8)
-        child = SearchNode(node_id="n7", parent_id="n5", depth=2, code=code, origin="plan_code", compile_ok=True, correct=True, node_status="correct", speedup=4.7)
+        config = PyramidKernelConfig(max_attempts=10)
+        root = SearchNode(
+            node_id="root",
+            parent_id=None,
+            depth=0,
+            code=code,
+            origin="root",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+        )
+        champion = SearchNode(
+            node_id="n5",
+            parent_id="root",
+            depth=1,
+            code=code,
+            origin="plan_code",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=4.8,
+        )
+        child = SearchNode(
+            node_id="n7",
+            parent_id="n5",
+            depth=2,
+            code=code,
+            origin="plan_code",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=4.7,
+        )
         root.child_ids = ["n5"]
         champion.child_ids = ["n7"]
         tree = TreeMemory(root, config)
@@ -109,10 +197,39 @@ class WorkflowSelectionModeTests(unittest.TestCase):
 
     def test_non_champion_branch_maps_to_challenger(self):
         code = "# <<<IMPROVE:cuda_cu>>>\npass\n# <<<END_IMPROVE>>>\n"
-        config = StarkConfig(max_attempts=10)
-        root = SearchNode(node_id="root", parent_id=None, depth=0, code=code, origin="root", compile_ok=True, correct=True, node_status="correct")
-        champion = SearchNode(node_id="n5", parent_id="root", depth=1, code=code, origin="plan_code", compile_ok=True, correct=True, node_status="correct", speedup=4.8)
-        sibling = SearchNode(node_id="n6", parent_id="root", depth=1, code=code, origin="plan_code", compile_ok=True, correct=True, node_status="correct", speedup=4.2)
+        config = PyramidKernelConfig(max_attempts=10)
+        root = SearchNode(
+            node_id="root",
+            parent_id=None,
+            depth=0,
+            code=code,
+            origin="root",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+        )
+        champion = SearchNode(
+            node_id="n5",
+            parent_id="root",
+            depth=1,
+            code=code,
+            origin="plan_code",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=4.8,
+        )
+        sibling = SearchNode(
+            node_id="n6",
+            parent_id="root",
+            depth=1,
+            code=code,
+            origin="plan_code",
+            compile_ok=True,
+            correct=True,
+            node_status="correct",
+            speedup=4.2,
+        )
         root.child_ids = ["n5", "n6"]
         tree = TreeMemory(root, config)
         tree.nodes = {"root": root, "n5": champion, "n6": sibling}

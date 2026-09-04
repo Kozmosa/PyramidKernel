@@ -1,6 +1,6 @@
-from src.evaluation.base import Evaluator
-from src.evaluation.isolated import IsolatedEvaluator, _evaluation_from_payload
-from src.models import EvaluationResult, StarkConfig, TaskSpec
+from pyramidkernel.evaluation.base import Evaluator
+from pyramidkernel.evaluation.isolated import IsolatedEvaluator, _evaluation_from_payload
+from pyramidkernel.models import EvaluationResult, PyramidKernelConfig, TaskSpec
 
 
 class FakeEvaluator(Evaluator):
@@ -33,7 +33,9 @@ def _task():
 
 
 def test_isolated_evaluator_passthrough_when_disabled():
-    result = IsolatedEvaluator(FakeEvaluator()).evaluate(_task(), "code", StarkConfig(evaluator_isolation="off"))
+    result = IsolatedEvaluator(FakeEvaluator()).evaluate(
+        _task(), "code", PyramidKernelConfig(evaluator_isolation="off")
+    )
     assert result.correct
     assert result.speedup == 2.0
     assert result.logs == ["fake"]

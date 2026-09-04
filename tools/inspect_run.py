@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect KernelWeaver run artifacts.
+"""Inspect PyramidKernel run artifacts.
 
 This script is intentionally read-only. It summarizes semantic profiles,
 strategy portfolios, strategy usage, and failure patterns from run.json files.
@@ -255,7 +255,7 @@ def inspect_task(run_json: Path) -> list[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Inspect KernelWeaver run artifacts.")
+    parser = argparse.ArgumentParser(description="Inspect PyramidKernel run artifacts.")
     parser.add_argument("run_dir", type=Path, help="Run directory or a task run.json path.")
     parser.add_argument("--task", help="Substring filter for task directory or run.json path.")
     parser.add_argument("--output", type=Path, help="Write markdown report to this path.")

@@ -2,7 +2,7 @@
 
 ## Scope
 
-KernelWeaver/PyramidKernel generates and evaluates Python and CUDA programs.
+PyramidKernel generates and evaluates Python and CUDA programs.
 Generated programs are untrusted code and must not be evaluated on a machine
 that contains production credentials or sensitive data.
 
@@ -14,9 +14,9 @@ network access.
 ## Reporting a vulnerability
 
 Please do not open a public issue for a credential leak or an exploitable
-execution issue. Contact the maintainers privately through the contact listed
-in the repository profile and include a minimal reproduction, affected commit,
-and impact. Never include live API keys in a report.
+execution issue. Use GitHub's private vulnerability reporting feature and
+include a minimal reproduction, affected commit, and impact. Never include
+live API keys in a report.
 
 ## Credential handling
 

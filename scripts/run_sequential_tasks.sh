@@ -32,15 +32,15 @@ Options:
   -h, --help                Show this help
 
 Environment helpers:
-  KERNELWEAVER_CONDA_ENV    Conda env name activated by run_single.sh
-  KERNELWEAVER_CONDA_PREFIX Conda env prefix activated by run_single.sh
-  KERNELWEAVER_CONDA_SH     Path to conda.sh
-  KERNELWEAVER_ENV_FILE     Env file passed to run_single.sh
+  PYRAMIDKERNEL_CONDA_ENV    Conda env name activated by run_single.sh
+  PYRAMIDKERNEL_CONDA_PREFIX Conda env prefix activated by run_single.sh
+  PYRAMIDKERNEL_CONDA_SH     Path to conda.sh
+  PYRAMIDKERNEL_ENV_FILE     Env file passed to run_single.sh
 
 Examples:
-  export KERNELWEAVER_CONDA_SH=/path/to/conda.sh
-  export KERNELWEAVER_CONDA_ENV=kernelweaver
-  export KERNELWEAVER_ENV_FILE=/absolute/path/to/private.env
+  export PYRAMIDKERNEL_CONDA_SH=/path/to/conda.sh
+  export PYRAMIDKERNEL_CONDA_ENV=pyramidkernel
+  export PYRAMIDKERNEL_ENV_FILE=/absolute/path/to/private.env
   bash scripts/run_sequential_tasks.sh \
     --task-config main_l1_15 \
     --experiment main \
@@ -53,7 +53,7 @@ Examples:
 EOF
 }
 
-repo_root="$(kw_repo_root "$SCRIPT_PATH")"
+repo_root="$(pk_repo_root "$SCRIPT_PATH")"
 python_bin="${PYTHON_BIN:-python}"
 experiment="${EXPERIMENT:-main}"
 task_config="${TASK_CONFIG:-main_l1_15}"
@@ -137,13 +137,13 @@ done
 if [[ -z "$output_root" ]]; then
   output_root="runs/sequential_${task_config}_${experiment}_${backend}_${timestamp}"
 fi
-output_root="$(kw_abs_path "$repo_root" "$output_root")"
+output_root="$(pk_abs_path "$repo_root" "$output_root")"
 
 prepare_output_root() {
   if [[ -e "$output_root" && "$reuse_output_root" != "1" ]]; then
     if [[ -n "$(find "$output_root" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
-      echo "[KernelWeaver] Output root already exists and is non-empty: $output_root" >&2
-      echo "[KernelWeaver] Use --reuse-output-root or choose a fresh --output-root." >&2
+      echo "[PyramidKernel] Output root already exists and is non-empty: $output_root" >&2
+      echo "[PyramidKernel] Use --reuse-output-root or choose a fresh --output-root." >&2
       exit 1
     fi
   fi
@@ -154,7 +154,7 @@ manifest_path() {
   local candidate="$task_config"
   if [[ "$candidate" == *.yaml || "$candidate" == *.yml ]]; then
     if [[ -f "$candidate" ]]; then
-      kw_abs_path "$repo_root" "$candidate"
+      pk_abs_path "$repo_root" "$candidate"
       return
     fi
   fi
@@ -166,7 +166,7 @@ manifest_path() {
     printf '%s\n' "$repo_root/configs/tasks/${candidate}"
     return
   fi
-  echo "[KernelWeaver] Could not find task config: $task_config" >&2
+  echo "[PyramidKernel] Could not find task config: $task_config" >&2
   exit 1
 }
 
@@ -216,13 +216,13 @@ run_driver() {
   load_tasks "$manifest" > "$tasks_file"
 
   {
-    echo "[KernelWeaver] sequential_start=$(date '+%Y-%m-%d %H:%M:%S')"
-    echo "[KernelWeaver] repo=$repo_root"
-    echo "[KernelWeaver] manifest=$manifest"
-    echo "[KernelWeaver] output_root=$output_root"
-    echo "[KernelWeaver] experiment=$experiment backend=$backend python=$python_bin"
-    echo "[KernelWeaver] route_config=${route_config:-<unset>} deliberation_config=${deliberation_config:-<unset>}"
-    echo "[KernelWeaver] gpu=${gpu_id:-<env>} stop_on_error=$stop_on_error"
+    echo "[PyramidKernel] sequential_start=$(date '+%Y-%m-%d %H:%M:%S')"
+    echo "[PyramidKernel] repo=$repo_root"
+    echo "[PyramidKernel] manifest=$manifest"
+    echo "[PyramidKernel] output_root=$output_root"
+    echo "[PyramidKernel] experiment=$experiment backend=$backend python=$python_bin"
+    echo "[PyramidKernel] route_config=${route_config:-<unset>} deliberation_config=${deliberation_config:-<unset>}"
+    echo "[PyramidKernel] gpu=${gpu_id:-<env>} stop_on_error=$stop_on_error"
   } | tee -a "$driver_log"
 
   printf 'index\talias\tlevel\tproblem_id\tstatus\texit_code\tstarted_at\tfinished_at\toutput_dir\n' > "$status_file"
@@ -241,8 +241,8 @@ run_driver() {
     started="$(date '+%Y-%m-%d %H:%M:%S')"
 
     {
-      echo "[KernelWeaver] task_start index=$index alias=$alias level=$level problem_id=$problem_id started_at=$started"
-      echo "[KernelWeaver] task_output=$task_dir"
+      echo "[PyramidKernel] task_start index=$index alias=$alias level=$level problem_id=$problem_id started_at=$started"
+      echo "[PyramidKernel] task_output=$task_dir"
     } | tee -a "$driver_log"
 
     local cmd=(
@@ -285,16 +285,16 @@ run_driver() {
       failures=$((failures + 1))
     fi
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$index" "$alias" "$level" "$problem_id" "$status" "$rc" "$started" "$finished" "$task_dir" >> "$status_file"
-    echo "[KernelWeaver] task_done index=$index alias=$alias status=$status exit_code=$rc finished_at=$finished" | tee -a "$driver_log"
+    echo "[PyramidKernel] task_done index=$index alias=$alias status=$status exit_code=$rc finished_at=$finished" | tee -a "$driver_log"
 
     if [[ "$rc" != "0" && "$stop_on_error" == "1" ]]; then
-      echo "[KernelWeaver] stop_on_error triggered at task index=$index problem_id=$problem_id" | tee -a "$driver_log"
+      echo "[PyramidKernel] stop_on_error triggered at task index=$index problem_id=$problem_id" | tee -a "$driver_log"
       break
     fi
   done < "$tasks_file"
 
-  echo "[KernelWeaver] sequential_done total=$total failures=$failures finished_at=$(date '+%Y-%m-%d %H:%M:%S')" | tee -a "$driver_log"
-  echo "[KernelWeaver] status=$status_file" | tee -a "$driver_log"
+  echo "[PyramidKernel] sequential_done total=$total failures=$failures finished_at=$(date '+%Y-%m-%d %H:%M:%S')" | tee -a "$driver_log"
+  echo "[PyramidKernel] status=$status_file" | tee -a "$driver_log"
   if [[ "$failures" -gt 0 ]]; then
     return 1
   fi
@@ -321,16 +321,16 @@ exec bash $(printf '%q' "$SCRIPT_PATH") \
   $(if [[ -n "$gpu_id" ]]; then printf -- '--gpu %q \\\n  ' "$gpu_id"; fi)$(if [[ -n "$route_config" ]]; then printf -- '--route-config %q \\\n  ' "$route_config"; fi)$(if [[ -n "$deliberation_config" ]]; then printf -- '--deliberation-config %q \\\n  ' "$deliberation_config"; fi)$(if [[ "$stop_on_error" == "1" ]]; then printf -- '--stop-on-error \\\n  '; else printf -- '--continue-on-error \\\n  '; fi)--reuse-output-root ${extra_args[*]+"${extra_args[@]}"}
 EOF
   chmod +x "$driver_script"
-  session_name="${session_name:-kw-seq-${task_config}-${timestamp}}"
-  session_name="$(kw_unique_tmux_session "$session_name")"
+  session_name="${session_name:-pyramidkernel-seq-${task_config}-${timestamp}}"
+  session_name="$(pk_unique_tmux_session "$session_name")"
   tmux new-session -d -s "$session_name" "bash $(printf '%q' "$driver_script") >> $(printf '%q' "$log_path") 2>&1"
-  echo "[KernelWeaver] Started detached sequential run."
-  echo "[KernelWeaver] session: $session_name"
-  echo "[KernelWeaver] output_root: $output_root"
-  echo "[KernelWeaver] log: $log_path"
-  echo "[KernelWeaver] status: $output_root/status.tsv"
-  echo "[KernelWeaver] attach: tmux attach -t $session_name"
-  echo "[KernelWeaver] tail: tail -f $log_path"
+  echo "[PyramidKernel] Started detached sequential run."
+  echo "[PyramidKernel] session: $session_name"
+  echo "[PyramidKernel] output_root: $output_root"
+  echo "[PyramidKernel] log: $log_path"
+  echo "[PyramidKernel] status: $output_root/status.tsv"
+  echo "[PyramidKernel] attach: tmux attach -t $session_name"
+  echo "[PyramidKernel] tail: tail -f $log_path"
 else
   run_driver
 fi

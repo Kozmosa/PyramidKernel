@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-ENV_NAME="${KW_ENV_NAME:-kernelweaver}"
+ENV_NAME="${PYRAMIDKERNEL_CONDA_ENV:-pyramidkernel}"
 CONDA_BIN="${CONDA_BIN:-conda}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FAILURES=0
 TMP_FILES=()
 
 cleanup() {
-  rm -f "${TMP_FILES[@]:-}" /tmp/kw_check_out.$$ /tmp/kw_check_err.$$
+  rm -f "${TMP_FILES[@]:-}" /tmp/pyramidkernel_check_out.$$ /tmp/pyramidkernel_check_err.$$
 }
 trap cleanup EXIT
 
@@ -20,21 +20,21 @@ check() {
   local name="$1"
   shift
   printf '[check] %s ... ' "$name"
-  if "$@" >/tmp/kw_check_out.$$ 2>/tmp/kw_check_err.$$; then
+  if "$@" >/tmp/pyramidkernel_check_out.$$ 2>/tmp/pyramidkernel_check_err.$$; then
     printf 'ok\n'
-    sed -n '1,40p' /tmp/kw_check_out.$$
+    sed -n '1,40p' /tmp/pyramidkernel_check_out.$$
   else
     printf 'FAILED\n'
-    sed -n '1,80p' /tmp/kw_check_out.$$
-    sed -n '1,80p' /tmp/kw_check_err.$$
+    sed -n '1,80p' /tmp/pyramidkernel_check_out.$$
+    sed -n '1,80p' /tmp/pyramidkernel_check_err.$$
     FAILURES=$((FAILURES + 1))
   fi
-  rm -f /tmp/kw_check_out.$$ /tmp/kw_check_err.$$
+  rm -f /tmp/pyramidkernel_check_out.$$ /tmp/pyramidkernel_check_err.$$
 }
 
 write_python_checks() {
-  PY_CORE_CHECK="$(mktemp /tmp/kw_core_check.XXXXXX.py)"
-  PY_IMPORT_CHECK="$(mktemp /tmp/kw_import_check.XXXXXX.py)"
+  PY_CORE_CHECK="$(mktemp /tmp/pyramidkernel_core_check.XXXXXX.py)"
+  PY_IMPORT_CHECK="$(mktemp /tmp/pyramidkernel_import_check.XXXXXX.py)"
   TMP_FILES+=("$PY_CORE_CHECK" "$PY_IMPORT_CHECK")
   cat > "$PY_CORE_CHECK" <<'PY'
 import sys
@@ -53,8 +53,7 @@ else:
     raise SystemExit('torch.cuda.is_available() is false')
 PY
   cat > "$PY_IMPORT_CHECK" <<'PY'
-import src
-import stark
+import pyramidkernel
 print('imports ok')
 PY
 }
@@ -77,7 +76,7 @@ section "Python package environment"
 if command -v "$CONDA_BIN" >/dev/null 2>&1 && "$CONDA_BIN" env list | awk '{print $1}' | grep -Fxq "$ENV_NAME"; then
   write_python_checks
   check "python/torch/yaml" "$CONDA_BIN" run -n "$ENV_NAME" python "$PY_CORE_CHECK"
-  check "kernelweaver import" env PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$CONDA_BIN" run -n "$ENV_NAME" python "$PY_IMPORT_CHECK"
+  check "pyramidkernel import" env PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$CONDA_BIN" run -n "$ENV_NAME" python "$PY_IMPORT_CHECK"
 else
   printf "conda env '%s' not found\n" "$ENV_NAME"
   FAILURES=$((FAILURES + 1))

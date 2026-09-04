@@ -1,9 +1,9 @@
-﻿import shutil
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from stark.core.loader import KernelBenchLoader
+from pyramidkernel.core.loader import KernelBenchLoader
 
 
 class SemanticProfileTests(unittest.TestCase):
@@ -13,7 +13,7 @@ class SemanticProfileTests(unittest.TestCase):
         self.tmp_root.mkdir(parents=True, exist_ok=True)
 
     def _new_tmp_dir(self) -> Path:
-        path = self.tmp_root / f"kw_semantics_{next(tempfile._get_candidate_names())}"
+        path = self.tmp_root / f"pk_semantics_{next(tempfile._get_candidate_names())}"
         if path.exists():
             shutil.rmtree(path)
         path.mkdir(parents=True, exist_ok=True)

@@ -1,12 +1,12 @@
-﻿import json
+import json
 import unittest
 from unittest.mock import patch
 
-from stark.diagnostics.schema import NcuProfile, TaskDiagnostics
-from stark.deliberation.schema import DeliberationStrategy, StrategyPortfolio
-from stark.models import AgentContext, AnchorEdit, NodeSnapshot, PlanProposal, SearchNode, TaskSpec
-from stark.providers import OpenAICompatibleConfig, OpenAICompatibleProvider
-from stark.providers.openai_provider import _task_metadata
+from pyramidkernel.diagnostics.schema import NcuProfile, TaskDiagnostics
+from pyramidkernel.deliberation.schema import DeliberationStrategy, StrategyPortfolio
+from pyramidkernel.models import AgentContext, AnchorEdit, NodeSnapshot, PlanProposal, SearchNode, TaskSpec
+from pyramidkernel.providers import OpenAICompatibleConfig, OpenAICompatibleProvider
+from pyramidkernel.providers.openai_provider import _task_metadata
 
 
 def _task() -> TaskSpec:
@@ -146,9 +146,7 @@ class OpenAIProviderStage3Tests(unittest.TestCase):
             "single_change_focus": "tune block size",
             "mutation_family": "launch_tuning",
             "target_metric": "speedup",
-            "anchor_edits": [
-                {"anchor_name": "cuda_cu", "instruction": "tune block size", "operation": "replace"}
-            ],
+            "anchor_edits": [{"anchor_name": "cuda_cu", "instruction": "tune block size", "operation": "replace"}],
         }
         with patch.object(provider, "_chat", return_value=json.dumps(response)):
             proposal = provider.propose_plan(task, node, context)

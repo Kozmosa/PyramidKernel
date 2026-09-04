@@ -1,11 +1,11 @@
 import json
 
-from src.core.candidate import normalize_candidate
-from src.core.patch_payload import parse_loose_json_dict
-from src.core.static_check import check_candidate_static
-from src.core.tree import TreeMemory
-from src.core.workflow import _prepare_candidate_for_evaluation
-from src.models import EvaluationResult, PlanProposal, SearchNode, StarkConfig, TaskSpec
+from pyramidkernel.core.candidate import normalize_candidate
+from pyramidkernel.core.patch_payload import parse_loose_json_dict
+from pyramidkernel.core.static_check import check_candidate_static
+from pyramidkernel.core.tree import TreeMemory
+from pyramidkernel.core.workflow import _prepare_candidate_for_evaluation
+from pyramidkernel.models import EvaluationResult, PlanProposal, SearchNode, PyramidKernelConfig, TaskSpec
 
 
 PARENT = '''
@@ -104,7 +104,7 @@ def test_region_scaffold_rejects_full_module_output():
 
 
 def test_static_check_rejects_extension_mismatch():
-    code = PARENT.replace('return x', 'return _stark_get_extension().missing(x)')
+    code = PARENT.replace("return x", "return _pyramidkernel_get_extension().missing(x)")
     result = check_candidate_static(code, backend="cuda")
     assert not result.ok
     assert result.failure_type in {
@@ -116,34 +116,49 @@ def test_static_check_rejects_extension_mismatch():
 
 
 def test_static_check_accepts_matching_extension_contract():
-    helper = "def _stark_get_extension():\n    return load_inline(name='x', cpp_sources=CUDA_CPP_SRC, cuda_sources=CUDA_CU_SRC, functions=None, with_cuda=True)"
-    code = PARENT.replace('# helper', helper)
-    code = code.replace('PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {}', 'torch::Tensor foo(torch::Tensor x);\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("foo", &foo, "foo"); }')
-    code = code.replace('#include <torch/extension.h>\n# <<<END_IMPROVE>>>', '#include <torch/extension.h>\ntorch::Tensor foo(torch::Tensor x) { return x; }\n# <<<END_IMPROVE>>>')
-    code = code.replace('return x\n        # <<<END_IMPROVE>>>', 'return _stark_get_extension().foo(x)\n        # <<<END_IMPROVE>>>')
+    helper = "def _pyramidkernel_get_extension():\n    return load_inline(name='x', cpp_sources=CUDA_CPP_SRC, cuda_sources=CUDA_CU_SRC, functions=None, with_cuda=True)"
+    code = PARENT.replace("# helper", helper)
+    code = code.replace(
+        "PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {}",
+        'torch::Tensor foo(torch::Tensor x);\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { m.def("foo", &foo, "foo"); }',
+    )
+    code = code.replace(
+        "#include <torch/extension.h>\n# <<<END_IMPROVE>>>",
+        "#include <torch/extension.h>\ntorch::Tensor foo(torch::Tensor x) { return x; }\n# <<<END_IMPROVE>>>",
+    )
+    code = code.replace(
+        "return x\n        # <<<END_IMPROVE>>>",
+        "return _pyramidkernel_get_extension().foo(x)\n        # <<<END_IMPROVE>>>",
+    )
     result = check_candidate_static(code, backend="cuda")
     assert result.ok
 
 
 def test_tree_excludes_no_anchor_nodes():
-    root = SearchNode(node_id="root", parent_id=None, depth=0, code=PARENT, origin="root", compile_ok=True, correct=True, score=1.0)
-    tree = TreeMemory(root, StarkConfig())
+    root = SearchNode(
+        node_id="root", parent_id=None, depth=0, code=PARENT, origin="root", compile_ok=True, correct=True, score=1.0
+    )
+    tree = TreeMemory(root, PyramidKernelConfig())
     proposal = PlanProposal("s", "s", [], "gain")
-    eval_result = EvaluationResult(False, False, None, float("inf"), failure_type="broken_anchor_markers", failure_stage="compile")
+    eval_result = EvaluationResult(
+        False, False, None, float("inf"), failure_type="broken_anchor_markers", failure_stage="compile"
+    )
     child = tree.add_child("root", "class ModelNew: pass", proposal, eval_result, "plan_code")
-    assert tree.exclusion_reason(child.node_id, StarkConfig()) == "no_anchor_unexpandable"
+    assert tree.exclusion_reason(child.node_id, PyramidKernelConfig()) == "no_anchor_unexpandable"
 
 
 def test_region_patch_normalizes_forward_indent_and_is_cuda_property():
-    raw = json.dumps({
-        "region_patches": [
-            {
-                "region": "forward_stmt_1",
-                "operation": "replace",
-                "body": "if x.is_cuda() and x.dtype == torch.float32:\n            return x + 1\n        return x",
-            }
-        ]
-    })
+    raw = json.dumps(
+        {
+            "region_patches": [
+                {
+                    "region": "forward_stmt_1",
+                    "operation": "replace",
+                    "body": "if x.is_cuda() and x.dtype == torch.float32:\n            return x + 1\n        return x",
+                }
+            ]
+        }
+    )
     result = normalize_candidate(PARENT, raw)
     assert result.ok
     assert "if x.is_cuda and x.dtype == torch.float32:" in result.code
@@ -154,15 +169,17 @@ def test_region_patch_normalizes_forward_indent_and_is_cuda_property():
 
 
 def test_region_patch_normalizes_try_except_indent_stack():
-    raw = json.dumps({
-        "region_patches": [
-            {
-                "region": "forward_stmt_1",
-                "operation": "replace",
-                "body": "if x.is_cuda:\n                    try:\n                        return x + 1\n                    except RuntimeError:\n                        pass\n                return x",
-            }
-        ]
-    })
+    raw = json.dumps(
+        {
+            "region_patches": [
+                {
+                    "region": "forward_stmt_1",
+                    "operation": "replace",
+                    "body": "if x.is_cuda:\n                    try:\n                        return x + 1\n                    except RuntimeError:\n                        pass\n                return x",
+                }
+            ]
+        }
+    )
     result = normalize_candidate(PARENT, raw)
     assert result.ok
     assert "if x.is_cuda:" in result.code
@@ -174,15 +191,17 @@ def test_region_patch_normalizes_try_except_indent_stack():
 
 
 def test_prepare_candidate_preserves_normalization_logs_on_static_failure():
-    raw = json.dumps({
-        "region_patches": [
-            {
-                "region": "forward_stmt_1",
-                "operation": "replace",
-                "body": "if x.is_cuda() and x.dtype == torch.float32:\n                    try:\n                        return _stark_get_extension().missing(x)\n                    except RuntimeError:\n                        pass\n                return x",
-            }
-        ]
-    })
+    raw = json.dumps(
+        {
+            "region_patches": [
+                {
+                    "region": "forward_stmt_1",
+                    "operation": "replace",
+                    "body": "if x.is_cuda() and x.dtype == torch.float32:\n                    try:\n                        return _pyramidkernel_get_extension().missing(x)\n                    except RuntimeError:\n                        pass\n                return x",
+                }
+            ]
+        }
+    )
     candidate_code, candidate_logs, guard = _prepare_candidate_for_evaluation(_task(), PARENT, raw)
     assert guard is not None
     assert candidate_logs
@@ -196,19 +215,21 @@ def test_prepare_candidate_preserves_normalization_logs_on_static_failure():
         "missing_pybind_binding",
         "extension_entrypoint_mismatch",
     }
-    assert "_stark_get_extension().missing(x)" in candidate_code
+    assert "_pyramidkernel_get_extension().missing(x)" in candidate_code
 
 
 def test_region_patch_rejects_anchor_name_alias():
-    raw = json.dumps({
-        "region_patches": [
-            {
-                "anchor_name": "forward_stmt_1",
-                "operation": "replace",
-                "body": "return x + 1",
-            }
-        ]
-    })
+    raw = json.dumps(
+        {
+            "region_patches": [
+                {
+                    "anchor_name": "forward_stmt_1",
+                    "operation": "replace",
+                    "body": "return x + 1",
+                }
+            ]
+        }
+    )
     result = normalize_candidate(PARENT, raw)
     assert not result.ok
     assert result.failure_type == "invalid_region_patch_format"
@@ -216,15 +237,17 @@ def test_region_patch_rejects_anchor_name_alias():
 
 def test_user_helpers_region_uses_python_hygiene():
     parent = PARENT
-    raw = json.dumps({
-        "region_patches": [
-            {
-                "region": "user_helpers",
-                "operation": "replace",
-                "body": "def helper(x):\n            return x.is_cuda()",
-            }
-        ]
-    })
+    raw = json.dumps(
+        {
+            "region_patches": [
+                {
+                    "region": "user_helpers",
+                    "operation": "replace",
+                    "body": "def helper(x):\n            return x.is_cuda()",
+                }
+            ]
+        }
+    )
     result = normalize_candidate(parent, raw)
     assert result.ok
     assert "return x.is_cuda" in result.code
@@ -234,15 +257,17 @@ def test_user_helpers_region_uses_python_hygiene():
 
 
 def test_region_patch_rejects_inactive_region():
-    raw = json.dumps({
-        "region_patches": [
-            {
-                "region": "forward_stmt_1",
-                "operation": "replace",
-                "body": "return x + 1",
-            }
-        ]
-    })
+    raw = json.dumps(
+        {
+            "region_patches": [
+                {
+                    "region": "forward_stmt_1",
+                    "operation": "replace",
+                    "body": "return x + 1",
+                }
+            ]
+        }
+    )
     result = normalize_candidate(PARENT, raw, allowed_regions={"cuda_cu"}, frozen_regions=set())
     assert not result.ok
     assert result.failure_type == "region_apply_failed"
@@ -250,15 +275,17 @@ def test_region_patch_rejects_inactive_region():
 
 
 def test_region_patch_rejects_frozen_region():
-    raw = json.dumps({
-        "region_patches": [
-            {
-                "region": "cuda_cpp",
-                "operation": "replace",
-                "body": "#include <torch/extension.h>",
-            }
-        ]
-    })
+    raw = json.dumps(
+        {
+            "region_patches": [
+                {
+                    "region": "cuda_cpp",
+                    "operation": "replace",
+                    "body": "#include <torch/extension.h>",
+                }
+            ]
+        }
+    )
     result = normalize_candidate(PARENT, raw, allowed_regions={"cuda_cpp"}, frozen_regions={"cuda_cpp"})
     assert not result.ok
     assert result.failure_type == "region_apply_failed"
@@ -291,11 +318,15 @@ def test_static_check_reports_python_region_syntax_error():
 
 
 def test_tree_throttles_compile_failure_debug_and_ignores_bad_root_children_for_throttle():
-    root = SearchNode(node_id="root", parent_id=None, depth=0, code=PARENT, origin="root", compile_ok=True, correct=True, score=1.0)
-    config = StarkConfig(root_child_limit=1, debug_retry_limit=3)
+    root = SearchNode(
+        node_id="root", parent_id=None, depth=0, code=PARENT, origin="root", compile_ok=True, correct=True, score=1.0
+    )
+    config = PyramidKernelConfig(root_child_limit=1, debug_retry_limit=3)
     tree = TreeMemory(root, config)
     proposal = PlanProposal("s", "s", [], "gain")
-    compile_eval = EvaluationResult(False, False, None, float("inf"), failure_type="python_region_syntax_error", failure_stage="compile")
+    compile_eval = EvaluationResult(
+        False, False, None, float("inf"), failure_type="python_region_syntax_error", failure_stage="compile"
+    )
     child = tree.add_child("root", PARENT, proposal, compile_eval, "plan_code")
     assert tree.exclusion_reason("root", config) is None
     assert tree.exclusion_reason(child.node_id, config) is None
@@ -304,15 +335,17 @@ def test_tree_throttles_compile_failure_debug_and_ignores_bad_root_children_for_
 
 
 def test_region_patch_normalizes_dtype_and_device_properties():
-    raw = json.dumps({
-        "region_patches": [
-            {
-                "region": "forward_stmt_1",
-                "operation": "replace",
-                "body": "if x.dtype() == torch.float32 and x.device() == y.device:\n    return x\nreturn x",
-            }
-        ]
-    })
+    raw = json.dumps(
+        {
+            "region_patches": [
+                {
+                    "region": "forward_stmt_1",
+                    "operation": "replace",
+                    "body": "if x.dtype() == torch.float32 and x.device() == y.device:\n    return x\nreturn x",
+                }
+            ]
+        }
+    )
     result = normalize_candidate(PARENT, raw)
     assert result.ok
     assert "x.dtype == torch.float32" in result.code

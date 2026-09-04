@@ -1,20 +1,20 @@
-﻿import json
+import json
 import shutil
 import time
 import unittest
 from pathlib import Path
 
-from stark.core.workflow import run_stark
-from stark.diagnostics.schema import NcuProfile, TaskDiagnostics
-from stark.deliberation.merge import apply_strategy_reviews, merge_strategy_proposals
-from stark.deliberation.runner import MultiModelDeliberationRunner
-from stark.deliberation.schema import DeliberationStrategy, ModelProposal, ModelReview
-from stark.feedback.schema import FeedbackState
-from stark.demo import build_demo_tasks
-from stark.evaluation import DemoEvaluator
-from stark.io import load_run, save_run
-from stark.models import StarkConfig
-from stark.providers import MockProvider
+from pyramidkernel.core.workflow import run_pyramidkernel
+from pyramidkernel.diagnostics.schema import NcuProfile, TaskDiagnostics
+from pyramidkernel.deliberation.merge import apply_strategy_reviews, merge_strategy_proposals
+from pyramidkernel.deliberation.runner import MultiModelDeliberationRunner
+from pyramidkernel.deliberation.schema import DeliberationStrategy, ModelProposal, ModelReview
+from pyramidkernel.feedback.schema import FeedbackState
+from pyramidkernel.demo import build_demo_tasks
+from pyramidkernel.evaluation import DemoEvaluator
+from pyramidkernel.io import load_run, save_run
+from pyramidkernel.models import PyramidKernelConfig
+from pyramidkernel.providers import MockProvider
 
 
 class DeliberationTests(unittest.TestCase):
@@ -44,7 +44,9 @@ class DeliberationTests(unittest.TestCase):
                         source_models=["mock_b"],
                         model_scores={"mock_b": 5},
                     ),
-                    DeliberationStrategy(strategy_id="", intent="tiling", summary="Try a tiled variant", source_models=["mock_b"]),
+                    DeliberationStrategy(
+                        strategy_id="", intent="tiling", summary="Try a tiled variant", source_models=["mock_b"]
+                    ),
                 ],
             ),
         ]
@@ -56,10 +58,14 @@ class DeliberationTests(unittest.TestCase):
     def test_review_scores_are_attached(self):
         proposal = ModelProposal(
             provider_name="mock_a",
-            strategies=[DeliberationStrategy(strategy_id="", intent="fusion", summary="Fuse ops", source_models=["mock_a"])],
+            strategies=[
+                DeliberationStrategy(strategy_id="", intent="fusion", summary="Fuse ops", source_models=["mock_a"])
+            ],
         )
         portfolio = merge_strategy_proposals([proposal], max_strategies=10)
-        apply_strategy_reviews(portfolio, [ModelReview(provider_name="mock_b", scores={"strategy_01": 4}, notes={"strategy_01": "good"})])
+        apply_strategy_reviews(
+            portfolio, [ModelReview(provider_name="mock_b", scores={"strategy_01": 4}, notes={"strategy_01": "good"})]
+        )
         self.assertEqual(portfolio.strategies[0].model_scores["mock_b"], 4.0)
         self.assertEqual(portfolio.strategies[0].review_notes["mock_b"], "good")
 
@@ -71,7 +77,7 @@ class DeliberationTests(unittest.TestCase):
                 raise RuntimeError("provider down")
 
         task = build_demo_tasks()[0]
-        config = StarkConfig(deliberation_enabled=True, deliberation_providers=["mock_ok", "mock_fail"])
+        config = PyramidKernelConfig(deliberation_enabled=True, deliberation_providers=["mock_ok", "mock_fail"])
         runner = MultiModelDeliberationRunner(
             providers={"mock_ok": MockProvider(), "mock_fail": FailingMock()},
             max_strategies=10,
@@ -84,8 +90,10 @@ class DeliberationTests(unittest.TestCase):
 
     def test_run_json_round_trips_strategy_portfolio(self):
         task = build_demo_tasks()[0]
-        config = StarkConfig(max_attempts=1, deliberation_enabled=True, deliberation_profile="quick")
-        runner = MultiModelDeliberationRunner(providers={"mock": MockProvider()}, max_strategies=2, strategies_per_model=1)
+        config = PyramidKernelConfig(max_attempts=1, deliberation_enabled=True, deliberation_profile="quick")
+        runner = MultiModelDeliberationRunner(
+            providers={"mock": MockProvider()}, max_strategies=2, strategies_per_model=1
+        )
         task.diagnostics_profile = TaskDiagnostics(
             enabled=True,
             mode="root_ncu_v1",
@@ -97,7 +105,7 @@ class DeliberationTests(unittest.TestCase):
             ),
         )
         task.strategy_portfolio = runner.run(task, config)
-        result = run_stark(task, config, MockProvider(), DemoEvaluator())
+        result = run_pyramidkernel(task, config, MockProvider(), DemoEvaluator())
         tmpdir = Path(__file__).resolve().parents[1] / "runs" / ".tmp_test_deliberation"
         if tmpdir.exists():
             shutil.rmtree(tmpdir)
@@ -117,10 +125,12 @@ class DeliberationTests(unittest.TestCase):
     def test_mock_plan_uses_untried_portfolio_strategy(self):
         task = build_demo_tasks()[0]
         task.strategy_catalog = []
-        config = StarkConfig(max_attempts=2, deliberation_enabled=True)
-        runner = MultiModelDeliberationRunner(providers={"mock_a": MockProvider(), "mock_b": MockProvider()}, max_strategies=2, strategies_per_model=1)
+        config = PyramidKernelConfig(max_attempts=2, deliberation_enabled=True)
+        runner = MultiModelDeliberationRunner(
+            providers={"mock_a": MockProvider(), "mock_b": MockProvider()}, max_strategies=2, strategies_per_model=1
+        )
         task.strategy_portfolio = runner.run(task, config)
-        result = run_stark(task, config, MockProvider(), DemoEvaluator())
+        result = run_pyramidkernel(task, config, MockProvider(), DemoEvaluator())
         used = [node.plan_strategy_name for node in result.nodes.values() if node.plan_strategy_name]
         self.assertTrue(any(name and name.startswith("strategy_") for name in used))
 
@@ -137,7 +147,10 @@ class DeliberationTests(unittest.TestCase):
                     return json.dumps({"scores": scores})
                 provider_name = str(user_payload.get("provider_name") or self.name)
                 anchors = list(user_payload.get("available_anchors") or [])
-                target = next((anchor for anchor in anchors if str(anchor).startswith("forward_stmt_")), anchors[0] if anchors else "helpers")
+                target = next(
+                    (anchor for anchor in anchors if str(anchor).startswith("forward_stmt_")),
+                    anchors[0] if anchors else "helpers",
+                )
                 if purpose == "deliberation_propose_upgrade":
                     return json.dumps(
                         {
@@ -159,8 +172,10 @@ class DeliberationTests(unittest.TestCase):
                 return super().generate_text(system_prompt, user_payload, temperature=temperature, purpose=purpose)
 
         task = build_demo_tasks()[0]
-        config = StarkConfig(deliberation_enabled=True, deliberation_providers=["mock"])
-        runner = MultiModelDeliberationRunner(providers={"mock": UpgradeMock()}, max_strategies=1, strategies_per_model=1)
+        config = PyramidKernelConfig(deliberation_enabled=True, deliberation_providers=["mock"])
+        runner = MultiModelDeliberationRunner(
+            providers={"mock": UpgradeMock()}, max_strategies=1, strategies_per_model=1
+        )
         base_portfolio = runner.run(task, config)
         upgraded = runner.run_upgrade(
             task,
@@ -185,7 +200,7 @@ class DeliberationTests(unittest.TestCase):
                 return super().generate_text(*args, **kwargs)
 
         task = build_demo_tasks()[0]
-        config = StarkConfig(deliberation_enabled=True, deliberation_providers=["mock_a", "mock_b", "mock_c"])
+        config = PyramidKernelConfig(deliberation_enabled=True, deliberation_providers=["mock_a", "mock_b", "mock_c"])
         runner = MultiModelDeliberationRunner(
             providers={
                 "mock_a": SlowMock(0.2),
@@ -234,4 +249,6 @@ class DeliberationTests(unittest.TestCase):
         self.assertEqual(results[1].provider_name, "slow")
         self.assertEqual(results[1].status, "error")
         self.assertIn("timeout", results[1].error)
-        self.assertTrue(any(event.provider_name == "slow" and event.status == "timeout" for event in runner.last_events))
+        self.assertTrue(
+            any(event.provider_name == "slow" and event.status == "timeout" for event in runner.last_events)
+        )

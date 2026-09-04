@@ -1,13 +1,13 @@
-﻿import shutil
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from stark.core.execution_facts import ExecutionFacts, TensorFact
-from stark.core.loader import KernelBenchLoader
-from stark.deliberation.runner import _proposal_payload
-from stark.providers.openai_provider import _task_metadata
-from stark.semantics import semantic_profile_from_dict, semantic_profile_to_prompt_dict
+from pyramidkernel.core.execution_facts import ExecutionFacts, TensorFact
+from pyramidkernel.core.loader import KernelBenchLoader
+from pyramidkernel.deliberation.runner import _proposal_payload
+from pyramidkernel.providers.openai_provider import _task_metadata
+from pyramidkernel.semantics import semantic_profile_from_dict, semantic_profile_to_prompt_dict
 
 
 class ExecutionFactsSchemaTests(unittest.TestCase):
@@ -24,14 +24,14 @@ class ExecutionFactsSchemaTests(unittest.TestCase):
         self.assertEqual(facts.init_args, [[1, 2, 3]])
         self.assertNotIn("derived", facts.to_dict())
 
-    def test_semantic_profile_ignores_legacy_heuristic_fields(self):
+    def test_semantic_profile_ignores_derived_heuristic_fields(self):
         profile = semantic_profile_from_dict(
             {
                 "enabled": True,
                 "mode": "rule",
                 "op_type": "normalization",
-                "summary": "legacy payload",
-                "source": "legacy.py",
+                "summary": "derived payload",
+                "source": "analysis.py",
                 "workload_tag": "many_rows_small_inner",
                 "bottleneck_hint": "unknown",
                 "recommended_anchors": ["forward_stmt_1"],
@@ -66,7 +66,7 @@ class ExecutionFactsLoaderTests(unittest.TestCase):
         self.tmp_root.mkdir(parents=True, exist_ok=True)
 
     def _new_tmp_dir(self) -> Path:
-        path = self.tmp_root / f"kw_execfacts_{next(tempfile._get_candidate_names())}"
+        path = self.tmp_root / f"pk_execfacts_{next(tempfile._get_candidate_names())}"
         if path.exists():
             shutil.rmtree(path)
         path.mkdir(parents=True, exist_ok=True)
@@ -186,7 +186,7 @@ class ExecutionFactsPromptTests(unittest.TestCase):
         self.tmp_root.mkdir(parents=True, exist_ok=True)
 
     def _new_tmp_dir(self) -> Path:
-        path = self.tmp_root / f"kw_execfacts_prompt_{next(tempfile._get_candidate_names())}"
+        path = self.tmp_root / f"pk_execfacts_prompt_{next(tempfile._get_candidate_names())}"
         if path.exists():
             shutil.rmtree(path)
         path.mkdir(parents=True, exist_ok=True)

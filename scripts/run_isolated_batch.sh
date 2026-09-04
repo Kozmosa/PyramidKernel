@@ -46,7 +46,7 @@ Examples:
 EOF
 }
 
-REPO_ROOT="$(kw_repo_root "$SCRIPT_PATH")"
+REPO_ROOT="$(pk_repo_root "$SCRIPT_PATH")"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 EXPERIMENT="${EXPERIMENT:-main}"
 TASK_CONFIG="${TASK_CONFIG:-}"
@@ -119,12 +119,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -n "$TASK_CONFIG" && -n "$MANIFEST_PATH" ]]; then
-  echo "[KernelWeaver] Use either --task-config or --manifest, not both." >&2
+  echo "[PyramidKernel] Use either --task-config or --manifest, not both." >&2
   exit 1
 fi
 
 if [[ -z "$TASK_CONFIG" && -z "$MANIFEST_PATH" ]]; then
-  echo "[KernelWeaver] Either --task-config or --manifest is required." >&2
+  echo "[PyramidKernel] Either --task-config or --manifest is required." >&2
   exit 1
 fi
 
@@ -132,20 +132,20 @@ if [[ -n "$TASK_CONFIG" ]]; then
   MANIFEST_SOURCE="$REPO_ROOT/configs/tasks/$TASK_CONFIG.yaml"
   MANIFEST_LABEL="$TASK_CONFIG"
 else
-  MANIFEST_SOURCE="$(kw_abs_path "$REPO_ROOT" "$MANIFEST_PATH")"
+  MANIFEST_SOURCE="$(pk_abs_path "$REPO_ROOT" "$MANIFEST_PATH")"
   MANIFEST_LABEL="$(basename "${MANIFEST_SOURCE%.*}")"
 fi
 
 if [[ ! -f "$MANIFEST_SOURCE" ]]; then
-  echo "[KernelWeaver] Manifest not found: $MANIFEST_SOURCE" >&2
+  echo "[PyramidKernel] Manifest not found: $MANIFEST_SOURCE" >&2
   exit 1
 fi
 
 if [[ -z "$OUTPUT_DIR" ]]; then
   OUTPUT_DIR="runs/${MANIFEST_LABEL}_${EXPERIMENT}_isolated_${TIMESTAMP}"
 fi
-OUTPUT_DIR="$(kw_abs_path "$REPO_ROOT" "$OUTPUT_DIR")"
-kw_prepare_output_dir "$OUTPUT_DIR" "$ALLOW_REUSE"
+OUTPUT_DIR="$(pk_abs_path "$REPO_ROOT" "$OUTPUT_DIR")"
+pk_prepare_output_dir "$OUTPUT_DIR" "$ALLOW_REUSE"
 
 MANIFEST_DIR="$OUTPUT_DIR/manifests"
 WORKER_DIR="$OUTPUT_DIR/workers"
@@ -154,7 +154,7 @@ mkdir -p "$MANIFEST_DIR" "$WORKER_DIR" "$TASK_ROOT"
 
 if [[ "$GPU_LIST" == "auto" ]]; then
   if ! command -v nvidia-smi >/dev/null 2>&1; then
-    echo "[KernelWeaver] Could not auto-detect GPUs because nvidia-smi is unavailable." >&2
+    echo "[PyramidKernel] Could not auto-detect GPUs because nvidia-smi is unavailable." >&2
     exit 1
   fi
   GPU_LIST="$(nvidia-smi --query-gpu=index --format=csv,noheader | paste -sd, -)"
@@ -162,14 +162,14 @@ fi
 
 IFS=',' read -r -a GPUS <<<"$GPU_LIST"
 if [[ "${#GPUS[@]}" -eq 0 ]]; then
-  echo "[KernelWeaver] No GPUs selected." >&2
+  echo "[PyramidKernel] No GPUs selected." >&2
   exit 1
 fi
 
 for i in "${!GPUS[@]}"; do
   GPUS[$i]="$(printf '%s' "${GPUS[$i]}" | xargs)"
   if [[ -z "${GPUS[$i]}" ]]; then
-    echo "[KernelWeaver] Empty GPU id detected in --gpus." >&2
+    echo "[PyramidKernel] Empty GPU id detected in --gpus." >&2
     exit 1
   fi
 done
@@ -240,7 +240,7 @@ PY
 
 TASK_COUNT=$(( $(wc -l < "$TASK_PLAN") - 1 ))
 if [[ "$TASK_COUNT" -le 0 ]]; then
-  echo "[KernelWeaver] Failed to split tasks from manifest: $MANIFEST_SOURCE" >&2
+  echo "[PyramidKernel] Failed to split tasks from manifest: $MANIFEST_SOURCE" >&2
   exit 1
 fi
 
@@ -281,18 +281,18 @@ set -euo pipefail
 
 cd $(printf '%q' "$REPO_ROOT")
 
-if [[ -n "\${KERNELWEAVER_CONDA_PREFIX:-}" || -n "\${KERNELWEAVER_CONDA_ENV:-}" ]]; then
-  CONDA_SH="\${KERNELWEAVER_CONDA_SH:-\$HOME/miniconda3/etc/profile.d/conda.sh}"
+if [[ -n "\${PYRAMIDKERNEL_CONDA_PREFIX:-}" || -n "\${PYRAMIDKERNEL_CONDA_ENV:-}" ]]; then
+  CONDA_SH="\${PYRAMIDKERNEL_CONDA_SH:-\$HOME/miniconda3/etc/profile.d/conda.sh}"
   if [[ ! -f "\$CONDA_SH" ]]; then
-    echo "[KernelWeaver] Could not find conda.sh at: \$CONDA_SH" >&2
+    echo "[PyramidKernel] Could not find conda.sh at: \$CONDA_SH" >&2
     exit 1
   fi
   # shellcheck disable=SC1090
   source "\$CONDA_SH"
-  if [[ -n "\${KERNELWEAVER_CONDA_PREFIX:-}" ]]; then
-    conda activate "\${KERNELWEAVER_CONDA_PREFIX}"
+  if [[ -n "\${PYRAMIDKERNEL_CONDA_PREFIX:-}" ]]; then
+    conda activate "\${PYRAMIDKERNEL_CONDA_PREFIX}"
   else
-    conda activate "\${KERNELWEAVER_CONDA_ENV}"
+    conda activate "\${PYRAMIDKERNEL_CONDA_ENV}"
   fi
 fi
 
@@ -337,10 +337,10 @@ if [[ -n "\${CUDA_HOME:-}" ]]; then
   fi
 fi
 
-echo "[KernelWeaver] worker_start gpu=$gpu tasks_file=$(printf '%q' "$task_file") at=\$(date '+%Y-%m-%d %H:%M:%S')"
-echo "[KernelWeaver] CUDA_VISIBLE_DEVICES=\${CUDA_VISIBLE_DEVICES}"
-echo "[KernelWeaver] CUDA_HOME=\${CUDA_HOME:-<unset>}"
-echo "[KernelWeaver] NVCC_PATH=\$(command -v nvcc || printf '%s' '<missing>')"
+echo "[PyramidKernel] worker_start gpu=$gpu tasks_file=$(printf '%q' "$task_file") at=\$(date '+%Y-%m-%d %H:%M:%S')"
+echo "[PyramidKernel] CUDA_VISIBLE_DEVICES=\${CUDA_VISIBLE_DEVICES}"
+echo "[PyramidKernel] CUDA_HOME=\${CUDA_HOME:-<unset>}"
+echo "[PyramidKernel] NVCC_PATH=\$(command -v nvcc || printf '%s' '<missing>')"
 
 while IFS=\$'\\t' read -r idx alias level problem_id manifest_path task_slug; do
   [[ -n "\${idx:-}" ]] || continue
@@ -349,7 +349,8 @@ while IFS=\$'\\t' read -r idx alias level problem_id manifest_path task_slug; do
   COMMAND=(
     $(printf '%q' "$PYTHON_BIN")
     -u
-    stark_cli.py
+    -m
+    pyramidkernel.cli
     run-kernelbench-batch
     --experiment
     $(printf '%q' "$EXPERIMENT")
@@ -366,8 +367,8 @@ EOF
     done
     cat <<EOF
   )
-  echo "[KernelWeaver] task_start idx=\$idx alias=\$alias gpu=$gpu output=\$task_output at=\$(date '+%Y-%m-%d %H:%M:%S')"
-  printf '[KernelWeaver] task_command:'
+  echo "[PyramidKernel] task_start idx=\$idx alias=\$alias gpu=$gpu output=\$task_output at=\$(date '+%Y-%m-%d %H:%M:%S')"
+  printf '[PyramidKernel] task_command:'
   printf ' %q' "\${COMMAND[@]}"
   printf '\n'
   set +e
@@ -375,29 +376,29 @@ EOF
   exit_code=\$?
   set -e
   if [[ "\$exit_code" -eq 0 ]]; then
-    echo "[KernelWeaver] task_done idx=\$idx alias=\$alias status=ok at=\$(date '+%Y-%m-%d %H:%M:%S')"
+    echo "[PyramidKernel] task_done idx=\$idx alias=\$alias status=ok at=\$(date '+%Y-%m-%d %H:%M:%S')"
   else
-    echo "[KernelWeaver] task_done idx=\$idx alias=\$alias status=fail exit_code=\$exit_code at=\$(date '+%Y-%m-%d %H:%M:%S')"
+    echo "[PyramidKernel] task_done idx=\$idx alias=\$alias status=fail exit_code=\$exit_code at=\$(date '+%Y-%m-%d %H:%M:%S')"
   fi
   sleep $(printf '%q' "$SLEEP_SECONDS")
 done < $(printf '%q' "$task_file")
 
-echo "[KernelWeaver] worker_done gpu=$gpu at=\$(date '+%Y-%m-%d %H:%M:%S')"
+echo "[PyramidKernel] worker_done gpu=$gpu at=\$(date '+%Y-%m-%d %H:%M:%S')"
 EOF
   } > "$worker_script"
   chmod +x "$worker_script"
 
   session_name="${SESSION_PREFIX:-kwiso-$(basename "$OUTPUT_DIR")}-g${gpu}"
-  session_name="$(kw_unique_tmux_session "$session_name")"
+  session_name="$(pk_unique_tmux_session "$session_name")"
   tmux new-session -d -s "$session_name" "bash $(printf '%q' "$worker_script") >> $(printf '%q' "$worker_log") 2>&1"
 
   printf '%s\t%s\t%s\t%s\t%s\n' "$gpu" "$session_name" "$worker_script" "$worker_log" "$task_file" >> "$SESSIONS_FILE"
 done
 
-echo "[KernelWeaver] Started isolated batch run."
-echo "[KernelWeaver] output_root: $OUTPUT_DIR"
-echo "[KernelWeaver] manifest_source: $MANIFEST_SOURCE"
-echo "[KernelWeaver] task_count: $TASK_COUNT"
-echo "[KernelWeaver] gpu_list: ${GPUS[*]}"
-echo "[KernelWeaver] sessions_file: $SESSIONS_FILE"
-echo "[KernelWeaver] tasks_root: $TASK_ROOT"
+echo "[PyramidKernel] Started isolated batch run."
+echo "[PyramidKernel] output_root: $OUTPUT_DIR"
+echo "[PyramidKernel] manifest_source: $MANIFEST_SOURCE"
+echo "[PyramidKernel] task_count: $TASK_COUNT"
+echo "[PyramidKernel] gpu_list: ${GPUS[*]}"
+echo "[PyramidKernel] sessions_file: $SESSIONS_FILE"
+echo "[PyramidKernel] tasks_root: $TASK_ROOT"

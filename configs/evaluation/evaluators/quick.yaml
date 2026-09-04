@@ -1,6 +1,5 @@
 # Evaluator layer.
 # This layer decides which evaluator path is used and which reference modes are measured.
-description: Fast paper-based evaluator for smoke checks.
-kernelbench_evaluator: paper
+description: Fast evaluator settings for smoke checks.
 reference_modes:
   - torch_eager

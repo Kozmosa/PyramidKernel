@@ -3,14 +3,14 @@ set -euo pipefail
 
 # Shared helpers for stable long-running experiment launches.
 
-kw_repo_root() {
+pk_repo_root() {
   local script_path=$1
   local script_dir
   script_dir=$(cd $(dirname $script_path) && pwd)
   cd $script_dir/.. && pwd
 }
 
-kw_abs_path() {
+pk_abs_path() {
   local repo_root=$1
   local raw_path=$2
   if [[ $raw_path = /* ]]; then
@@ -20,29 +20,29 @@ kw_abs_path() {
   fi
 }
 
-kw_prepare_output_dir() {
+pk_prepare_output_dir() {
   local output_dir=$1
   local allow_reuse=${2:-0}
   if [[ -d $output_dir ]]; then
     if [[ $allow_reuse != 1 ]] && find $output_dir -mindepth 1 -print -quit | grep -q .; then
-      echo [KernelWeaver] Output directory is not empty: $output_dir >&2
-      echo [KernelWeaver] Use a fresh output directory, or pass --reuse-output-dir if you really want to reuse it. >&2
+      echo [PyramidKernel] Output directory is not empty: $output_dir >&2
+      echo [PyramidKernel] Use a fresh output directory, or pass --reuse-output-dir if you really want to reuse it. >&2
       return 1
     fi
   fi
   mkdir -p $output_dir
 }
 
-kw_write_launch_script() {
+pk_write_launch_script() {
   local launch_path=$1
   local repo_root=$2
   local command_array_name=$3
   local -n command_ref=$command_array_name
   local forwarded_vars=(
-    KERNELWEAVER_CONDA_PREFIX
-    KERNELWEAVER_CONDA_ENV
-    KERNELWEAVER_CONDA_SH
-    KERNELWEAVER_ENV_FILE
+    PYRAMIDKERNEL_CONDA_PREFIX
+    PYRAMIDKERNEL_CONDA_ENV
+    PYRAMIDKERNEL_CONDA_SH
+    PYRAMIDKERNEL_ENV_FILE
     CUDA_VISIBLE_DEVICES
     CUDALLM_DEVICE
     CUDALLM_MODEL_PATH
@@ -85,18 +85,18 @@ SCRIPT_HEAD
 
     cat <<'''SCRIPT_BODY'''
 
-if [[ -n ${KERNELWEAVER_CONDA_PREFIX:-} || -n ${KERNELWEAVER_CONDA_ENV:-} ]]; then
-  CONDA_SH=${KERNELWEAVER_CONDA_SH:-$HOME/miniconda3/etc/profile.d/conda.sh}
+if [[ -n ${PYRAMIDKERNEL_CONDA_PREFIX:-} || -n ${PYRAMIDKERNEL_CONDA_ENV:-} ]]; then
+  CONDA_SH=${PYRAMIDKERNEL_CONDA_SH:-$HOME/miniconda3/etc/profile.d/conda.sh}
   if [[ ! -f $CONDA_SH ]]; then
-    echo [KernelWeaver] Could not find conda.sh at: $CONDA_SH >&2
+    echo [PyramidKernel] Could not find conda.sh at: $CONDA_SH >&2
     exit 1
   fi
   # shellcheck disable=SC1090
   source $CONDA_SH
-  if [[ -n ${KERNELWEAVER_CONDA_PREFIX:-} ]]; then
-    conda activate ${KERNELWEAVER_CONDA_PREFIX}
+  if [[ -n ${PYRAMIDKERNEL_CONDA_PREFIX:-} ]]; then
+    conda activate ${PYRAMIDKERNEL_CONDA_PREFIX}
   else
-    conda activate ${KERNELWEAVER_CONDA_ENV}
+    conda activate ${PYRAMIDKERNEL_CONDA_ENV}
   fi
 fi
 
@@ -109,7 +109,7 @@ resolve_cuda_home() {
     return 0
   fi
   if [[ -n ${CUDA_HOME:-} && ! -x $CUDA_HOME/bin/nvcc ]]; then
-    echo [KernelWeaver] Ignoring CUDA_HOME without nvcc: $CUDA_HOME >&2
+    echo [PyramidKernel] Ignoring CUDA_HOME without nvcc: $CUDA_HOME >&2
     unset CUDA_HOME
   fi
   if [[ -n ${CONDA_PREFIX:-} && -x $CONDA_PREFIX/bin/nvcc ]]; then
@@ -130,7 +130,7 @@ resolve_cuda_home() {
 }
 resolve_cuda_home
 if [[ -z ${CUDA_HOME:-} || ! -x $CUDA_HOME/bin/nvcc ]]; then
-  echo [KernelWeaver] Could not locate a CUDA toolkit with nvcc. Set CUDA_HOME to a valid CUDA toolkit root. >&2
+  echo [PyramidKernel] Could not locate a CUDA toolkit with nvcc. Set CUDA_HOME to a valid CUDA toolkit root. >&2
   exit 1
 fi
 
@@ -158,18 +158,18 @@ SCRIPT_BODY
     cat <<'''SCRIPT_TAIL'''
 )
 
-echo [KernelWeaver] repo: __REPO_ROOT__
-printf '[KernelWeaver] command:'
+echo [PyramidKernel] repo: __REPO_ROOT__
+printf '[PyramidKernel] command:'
 printf ' %q' ${COMMAND[@]}
 printf '\n'
-echo [KernelWeaver] started_at: $(date '+%Y-%m-%d %H:%M:%S')
+echo [PyramidKernel] started_at: $(date '+%Y-%m-%d %H:%M:%S')
 
-echo [KernelWeaver] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}
-echo [KernelWeaver] CUDALLM_DEVICE=${CUDALLM_DEVICE:-<unset>}
-echo [KernelWeaver] KERNELWEAVER_CONDA_ENV=${KERNELWEAVER_CONDA_ENV:-<unset>}
-echo [KernelWeaver] KERNELWEAVER_ENV_FILE=${KERNELWEAVER_ENV_FILE:-<unset>}
-echo [KernelWeaver] CUDA_HOME=${CUDA_HOME:-<unset>}
-echo [KernelWeaver] NVCC_PATH=$(command -v nvcc || printf '%s' '<missing>')
+echo [PyramidKernel] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}
+echo [PyramidKernel] CUDALLM_DEVICE=${CUDALLM_DEVICE:-<unset>}
+echo [PyramidKernel] PYRAMIDKERNEL_CONDA_ENV=${PYRAMIDKERNEL_CONDA_ENV:-<unset>}
+echo [PyramidKernel] PYRAMIDKERNEL_ENV_FILE=${PYRAMIDKERNEL_ENV_FILE:-<unset>}
+echo [PyramidKernel] CUDA_HOME=${CUDA_HOME:-<unset>}
+echo [PyramidKernel] NVCC_PATH=$(command -v nvcc || printf '%s' '<missing>')
 
 exec ${COMMAND[@]}
 SCRIPT_TAIL
@@ -177,11 +177,11 @@ SCRIPT_TAIL
   chmod +x $launch_path
 }
 
-kw_unique_tmux_session() {
+pk_unique_tmux_session() {
   local base_name=$1
   local session_name=$base_name
   if ! command -v tmux >/dev/null 2>&1; then
-    echo [KernelWeaver] tmux is required for --detach mode. >&2
+    echo [PyramidKernel] tmux is required for --detach mode. >&2
     return 1
   fi
   if tmux has-session -t $session_name 2>/dev/null; then

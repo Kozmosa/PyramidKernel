@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from stark.providers import ClaudeCompatibleConfig, ClaudeCompatibleProvider
+from pyramidkernel.providers import ClaudeCompatibleConfig, ClaudeCompatibleProvider
 
 
 class _DummyResponse:
@@ -12,7 +12,6 @@ class _DummyResponse:
 
     def json(self):
         return self._payload
-
 
 
 class ClaudeProviderTests(unittest.TestCase):
@@ -42,7 +41,7 @@ class ClaudeProviderTests(unittest.TestCase):
             captured["kwargs"] = kwargs
             return _DummyResponse({"content": [{"text": "ok"}]})
 
-        with patch("stark.providers.http_utils.requests.post", side_effect=_fake_post):
+        with patch("pyramidkernel.providers.http_utils.requests.post", side_effect=_fake_post):
             payload = provider._post_json(
                 provider._messages_endpoint(),
                 {"model": "claude-sonnet-4-6", "messages": [{"role": "user", "content": "hello"}]},

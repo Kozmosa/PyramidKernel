@@ -1,5 +1,5 @@
 # Measurement layer.
-# This is the regular setting we use for our own experiments.
+# Measurement settings for full experiments.
 description: Main measurement for regular experiments.
 benchmark_loops: 120
 warmup_loops: 10

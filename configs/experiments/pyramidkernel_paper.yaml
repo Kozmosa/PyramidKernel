@@ -2,7 +2,7 @@
 # Model identifiers and API endpoints are supplied through .env.
 name: pyramidkernel_paper
 description: Reproduction-oriented PyramidKernel configuration for the complete KernelBench benchmark.
-workflow: stark
+workflow: pyramidkernel
 backend: cuda
 provider: openai-compatible
 route: codeagent_claude

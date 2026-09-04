@@ -1,17 +1,24 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+.cache/
 .env
 .env.*
 !.env.example
 .venv/
+.tox/
+.nox/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
+coverage.xml
+junit.xml
 htmlcov/
 dist/
 build/
+site/
 .tmp/
 runs/*
 !runs/.gitkeep
@@ -20,10 +27,15 @@ results/artifacts/
 _branch_extract*/
 /models/
 *.log
+*.ncu-rep
+*.nsys-rep
 
 reports/
 *.tar.gz
-$LOG
-child=
+
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
 
 # Local generated artifacts

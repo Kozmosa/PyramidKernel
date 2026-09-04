@@ -2,7 +2,7 @@
 # Use this when you only want to check whether the chain is wired correctly.
 name: quick
 description: Fast smoke configuration for local validation.
-workflow: stark
+workflow: pyramidkernel
 backend: triton
 provider: mock
 route: all_mock

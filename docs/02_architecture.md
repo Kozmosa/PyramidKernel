@@ -2,35 +2,35 @@
 
 ## Core Modules
 
-- `src/core/loader.py`: thin KernelBench loader that reads official problems and builds generic `ModelNew` scaffolds
-- `src/core/workflow.py`: STARK-style workflow implementations
-- `src/core/tree.py`: search-tree state and leaderboard tracking
-- `src/core/context.py`: role-specific dynamic context construction
+- `pyramidkernel/core/loader.py`: thin KernelBench loader that reads official problems and builds generic `ModelNew` scaffolds
+- `pyramidkernel/core/workflow.py`: staged search and refinement workflow
+- `pyramidkernel/core/tree.py`: search-tree state and leaderboard tracking
+- `pyramidkernel/core/context.py`: role-specific dynamic context construction
 
 ## Agent Modules
 
-- `src/agents/plan_agent.py`: selects the optimization intent and grounded edit target
-- `src/agents/code_agent.py`: implements the plan in the selected backend DSL
-- `src/agents/debug_agent.py`: repairs compile, runtime, and correctness failures
+- `pyramidkernel/agents/plan_agent.py`: selects the optimization intent and grounded edit target
+- `pyramidkernel/agents/code_agent.py`: implements the plan in the selected backend DSL
+- `pyramidkernel/agents/debug_agent.py`: repairs compile, runtime, and correctness failures
 
 ## Provider Modules
 
-- `src/providers/openai_provider.py`: OpenAI-compatible API provider
-- `src/providers/claude_provider.py`: Claude-compatible API provider
-- `src/providers/cudallm_provider.py`: local cudaLLM provider
-- `src/providers/role_router.py`: per-role provider routing
+- `pyramidkernel/providers/openai_provider.py`: OpenAI-compatible API provider
+- `pyramidkernel/providers/claude_provider.py`: Claude-compatible API provider
+- `pyramidkernel/providers/cudallm_provider.py`: local cudaLLM provider
+- `pyramidkernel/providers/role_router.py`: per-role provider routing
 
 ## Evaluation Modules
 
-- `src/evaluation/base.py`: shared evaluator helpers
-- `src/evaluation/demo.py`: demo evaluator
-- `src/evaluation/evaluator_paper.py`: official KernelBench-based evaluator
-- `src/evaluation/validation.py`: saved-run revalidation
+- `pyramidkernel/evaluation/base.py`: shared evaluator helpers
+- `pyramidkernel/evaluation/demo.py`: demo evaluator
+- `pyramidkernel/evaluation/evaluator_paper.py`: official KernelBench-based evaluator
+- `pyramidkernel/evaluation/validation.py`: saved-run revalidation
 
 ## Experiment Modules
 
-- `src/experiment/batch_runner.py`: manifest loading and batch summaries
-- `src/experiment/report_builder.py`: aggregate reports for completed runs
+- `pyramidkernel/experiment/batch_runner.py`: manifest loading and batch summaries
+- `pyramidkernel/experiment/report_builder.py`: aggregate reports for completed runs
 
 ## Data Flow
 

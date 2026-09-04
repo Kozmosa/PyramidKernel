@@ -1,10 +1,5 @@
-"""Public import namespace for the PyramidKernel source layout."""
+"""PyramidKernel: multi-agent optimization for GPU kernels."""
 
-from pathlib import Path
-import sys
+__version__ = "0.1.0"
 
-_PKG_DIR = Path(__file__).resolve().parent
-_SRC_DIR = _PKG_DIR.parent / "src"
-if str(_SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(_SRC_DIR))
-__path__ = [str(_SRC_DIR)]
+__all__ = ["__version__"]

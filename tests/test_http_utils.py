@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch
 
-from stark.providers.http_utils import post_json_request, stream_json_events_request
+from pyramidkernel.providers.http_utils import post_json_request, stream_json_events_request
 
 
 def test_post_json_request_uses_bounded_connect_timeout():
@@ -9,7 +9,7 @@ def test_post_json_request_uses_bounded_connect_timeout():
     response.text = '{"ok": true}'
     response.json.return_value = {"ok": True}
 
-    with patch("stark.providers.http_utils.requests.post", return_value=response) as post:
+    with patch("pyramidkernel.providers.http_utils.requests.post", return_value=response) as post:
         result = post_json_request(
             url="https://example.test/v1/chat/completions",
             request_body={"x": 1},
@@ -28,7 +28,7 @@ def test_post_json_request_keeps_short_timeout_for_quick_profiles():
     response.text = '{"ok": true}'
     response.json.return_value = {"ok": True}
 
-    with patch("stark.providers.http_utils.requests.post", return_value=response) as post:
+    with patch("pyramidkernel.providers.http_utils.requests.post", return_value=response) as post:
         post_json_request(
             url="https://example.test/v1/chat/completions",
             request_body={"x": 1},
@@ -51,7 +51,7 @@ def test_stream_json_events_request_parses_sse_lines():
         b"data: [DONE]",
     ]
 
-    with patch("stark.providers.http_utils.requests.post", return_value=response) as post:
+    with patch("pyramidkernel.providers.http_utils.requests.post", return_value=response) as post:
         result = stream_json_events_request(
             url="https://example.test/v1/chat/completions",
             request_body={"stream": True},

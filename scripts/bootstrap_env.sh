@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENV_NAME="${KW_ENV_NAME:-kernelweaver}"
+ENV_NAME="${PYRAMIDKERNEL_CONDA_ENV:-pyramidkernel}"
 CONDA_BIN="${CONDA_BIN:-conda}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOCK_FILE="${KW_ENV_LOCK:-$REPO_ROOT/environment.lock.yml}"
-BASE_FILE="$REPO_ROOT/environment.yml"
+ENV_FILE="$REPO_ROOT/environment.yml"
 
 log() {
   printf '[bootstrap_env] %s\n' "$*"
@@ -20,11 +19,6 @@ if ! command -v "$CONDA_BIN" >/dev/null 2>&1; then
   fail "conda not found. Install Miniconda/Mambaforge first, or set CONDA_BIN=/path/to/conda."
 fi
 
-if [ -f "$LOCK_FILE" ]; then
-  ENV_FILE="$LOCK_FILE"
-else
-  ENV_FILE="$BASE_FILE"
-fi
 [ -f "$ENV_FILE" ] || fail "missing environment file: $ENV_FILE"
 
 if "$CONDA_BIN" env list | awk '{print $1}' | grep -Fxq "$ENV_NAME"; then

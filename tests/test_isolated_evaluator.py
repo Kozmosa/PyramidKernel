@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from stark.evaluation.isolated import _run_worker_process, _worker_signal_log
+from pyramidkernel.evaluation.isolated import _run_worker_process, _worker_signal_log
 
 
 @pytest.mark.skipif(not hasattr(signal, "SIGKILL"), reason="SIGKILL is not available on this platform")

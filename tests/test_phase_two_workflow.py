@@ -1,12 +1,20 @@
 import json
 import unittest
 
-from stark.core.workflow import run_stark
-from stark.deliberation.runner import MultiModelDeliberationRunner
-from stark.models import AgentContext, AnchorEdit, EvaluationResult, PlanProposal, SearchNode, StarkConfig, TaskSpec
-from stark.providers import MockProvider
-from stark.providers.base_provider import AgentProvider
-from stark.providers.openai_provider import _task_metadata
+from pyramidkernel.core.workflow import run_pyramidkernel
+from pyramidkernel.deliberation.runner import MultiModelDeliberationRunner
+from pyramidkernel.models import (
+    AgentContext,
+    AnchorEdit,
+    EvaluationResult,
+    PlanProposal,
+    SearchNode,
+    PyramidKernelConfig,
+    TaskSpec,
+)
+from pyramidkernel.providers import MockProvider
+from pyramidkernel.providers.base_provider import AgentProvider
+from pyramidkernel.providers.openai_provider import _task_metadata
 
 
 class DeterministicPhaseProvider(AgentProvider):
@@ -15,7 +23,9 @@ class DeterministicPhaseProvider(AgentProvider):
         return PlanProposal(
             strategy_name="phase_strategy",
             strategy_summary="Local sum rewrite",
-            anchor_edits=[AnchorEdit(anchor_name="body", instruction="Replace body with the next deterministic variant.")],
+            anchor_edits=[
+                AnchorEdit(anchor_name="body", instruction="Replace body with the next deterministic variant.")
+            ],
             expected_gain="Deterministic phase-two test candidate.",
             target_node_id=node.node_id,
             target_anchors=["body"],
@@ -42,7 +52,7 @@ class DeterministicPhaseProvider(AgentProvider):
 
 
 class DeterministicEvaluator:
-    def evaluate(self, task: TaskSpec, candidate_code: str, config: StarkConfig) -> EvaluationResult:
+    def evaluate(self, task: TaskSpec, candidate_code: str, config: PyramidKernelConfig) -> EvaluationResult:
         del task, config
         if "return sum(data) + 0" in candidate_code:
             runtime = 0.4
@@ -95,7 +105,7 @@ def _task() -> TaskSpec:
 class PhaseTwoWorkflowTests(unittest.TestCase):
     def test_phase_two_reroot_creates_phase_transition(self):
         task = _task()
-        config = StarkConfig(
+        config = PyramidKernelConfig(
             max_attempts=4,
             phase_two_enabled=True,
             phase_two_split_attempts=2,
@@ -112,7 +122,7 @@ class PhaseTwoWorkflowTests(unittest.TestCase):
             strategies_per_model=1,
         )
         task.strategy_portfolio = deliberation_runner.run(task, config)
-        result = run_stark(
+        result = run_pyramidkernel(
             task,
             config,
             DeterministicPhaseProvider(),

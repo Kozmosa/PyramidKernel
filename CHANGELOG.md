@@ -6,8 +6,7 @@ All notable public changes to PyramidKernel are recorded here.
 
 ### Added
 
-- Public PyramidKernel package and `pyramidkernel` command, with `stark`
-  compatibility entry points retained.
+- Installable `pyramidkernel` package and command-line interface.
 - Reproduction-oriented `pyramidkernel_paper` experiment preset and cleaned
   paper aggregate tables.
 - Pinned KernelBench submodule, environment templates, contributor guidance,
@@ -17,7 +16,7 @@ All notable public changes to PyramidKernel are recorded here.
 ### Changed
 
 - Removed generated run archives, temporary task shards, server-specific paths,
-  and profiling artifacts from the public tree.
+  development aliases, and profiling artifacts from the public tree.
 - Standardized generated-region indentation hygiene and cross-platform tests.
 
 ### Release notes

@@ -2,8 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from stark.direct_baseline import extract_python_code, run_direct_baseline
-from stark.models import EvaluationResult, StarkConfig, TaskSpec
+from pyramidkernel.direct_baseline import extract_python_code, run_direct_baseline
+from pyramidkernel.models import EvaluationResult, PyramidKernelConfig, TaskSpec
 
 
 class DirectBaselineTests(unittest.TestCase):
@@ -36,7 +36,9 @@ class ModelNew:
             problem_id=1,
             backend="cuda",
         )
-        config = StarkConfig(run_profile="main", search_profile="main", evaluator_profile="main", measurement_profile="main")
+        config = PyramidKernelConfig(
+            run_profile="main", search_profile="main", evaluator_profile="main", measurement_profile="main"
+        )
         with tempfile.TemporaryDirectory() as tmpdir:
             result = run_direct_baseline(
                 task,
