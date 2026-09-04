@@ -10,7 +10,7 @@ file; never commit that file.
 
 The paper reports two hardware contexts. The main PyramidKernel results use an
 NVIDIA RTX 4090. The cross-system comparison uses an NVIDIA A100 80GB. Runtime,
-driver, CUDA, PyTorch, Triton, and KernelBench versions must be recorded with
+driver, CUDA, PyTorch, and KernelBench versions must be recorded with
 each run because GPU timings are not portable.
 
 ## Recommended protocol

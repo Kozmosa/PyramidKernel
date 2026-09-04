@@ -30,11 +30,9 @@
 
 ## 🧭 Overview
 
-PyramidKernel is a stage-structured multi-agent framework for LLM-driven GPU
-kernel optimization. It combines broad, model-driven exploration with
-execution-grounded convergence: the system first searches across diverse
-implementation families, then re-profiles the fastest correct candidate and
-focuses the remaining budget on its measured bottlenecks.
+PyramidKernel is a multi-agent framework for LLM-driven GPU kernel optimization.
+It explores diverse implementations, validates candidates by execution, and
+refines the fastest correct candidate around measured bottlenecks.
 
 <p align="center">
   <img src="assets/pyramidkernel_overview.png" alt="PyramidKernel method overview" width="100%">
@@ -224,7 +222,7 @@ Machine-readable software citation metadata is available in
 ## 🙏 Acknowledgements
 
 PyramidKernel builds on [KernelBench](https://github.com/ScalingIntelligence/KernelBench)
-and the PyTorch, Triton, TileLang, and NVIDIA CUDA ecosystems. See
+and the PyTorch and NVIDIA CUDA ecosystems. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party licensing
 details.
 

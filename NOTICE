@@ -1,6 +1,7 @@
 PyramidKernel is distributed under the Apache License, Version 2.0.
 
-This repository depends on external projects, including KernelBench, PyTorch,
-Triton, TileLang, and NVIDIA libraries. Their names and licenses remain the
-property of their respective authors. See THIRD_PARTY_NOTICES.md before
-redistributing benchmark files or generated artifacts.
+The core experiments depend on KernelBench, PyTorch, and NVIDIA CUDA. Optional
+backend modules may use Triton, TileLang, and other NVIDIA libraries. Their
+names and licenses remain the property of their respective authors. See
+THIRD_PARTY_NOTICES.md before redistributing benchmark files or generated
+artifacts.

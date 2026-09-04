@@ -9,9 +9,7 @@ Before a release, record the exact commit and license for:
   `423217d9fda91e0c2d67e4a43bf62f96f6d104f1`, MIT licensed at the time of this
   release);
 - PyTorch and its CUDA runtime packages;
-- Triton;
-- TileLang;
-- NVIDIA CUTLASS/CuTe libraries;
+- Optional Triton, TileLang, and NVIDIA CUTLASS/CuTe backend dependencies;
 - model provider SDKs and any redistributed model outputs.
 
 Do not vendor or redistribute an external benchmark, model weight, or provider

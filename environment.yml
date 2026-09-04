@@ -5,5 +5,4 @@ dependencies:
   - python=3.10
   - pip
   - pip:
-      - -e .[cuda,triton,local-model]
-      - nvidia-cutlass-dsl
+      - -e .[cuda,local-model]
