@@ -40,6 +40,7 @@ class GeminiCompatibleConfig:
     max_retries: int = 3
     retry_backoff_seconds: float = 1.0
     user_agent: str = "curl/8.5.0"
+    transcript_path: str | None = None
 
 
 class GeminiCompatibleProvider(OpenAICompatibleProvider):
@@ -147,18 +148,48 @@ class GeminiCompatibleProvider(OpenAICompatibleProvider):
         user_payload: dict[str, Any],
         temperature: float,
         reasoning_effort: str | None = None,
+        purpose: str = "generic",
     ) -> str:
         del reasoning_effort
         last_error: Exception | None = None
         attempts = max(1, self.config.max_retries)
         for attempt in range(attempts):
+            started_at = time.time()
             try:
                 payload = self._generate_content_request(system_prompt, user_payload, temperature)
-                return self._extract_text_from_generate_content(payload)
+                text = self._extract_text_from_generate_content(payload)
+                self._record_transcript(
+                    purpose=purpose,
+                    attempt=attempt,
+                    system_prompt=system_prompt,
+                    user_payload=user_payload,
+                    response_text=text,
+                    error=None,
+                    started_at=started_at,
+                )
+                return text
             except TimeoutError as exc:
                 last_error = exc
+                self._record_transcript(
+                    purpose=purpose,
+                    attempt=attempt,
+                    system_prompt=system_prompt,
+                    user_payload=user_payload,
+                    response_text=None,
+                    error=f"{type(exc).__name__}: {exc}",
+                    started_at=started_at,
+                )
             except RuntimeError as exc:
                 last_error = exc
+                self._record_transcript(
+                    purpose=purpose,
+                    attempt=attempt,
+                    system_prompt=system_prompt,
+                    user_payload=user_payload,
+                    response_text=None,
+                    error=f"{type(exc).__name__}: {exc}",
+                    started_at=started_at,
+                )
                 if not _is_retryable_llm_error(exc):
                     raise
             if attempt + 1 < attempts:

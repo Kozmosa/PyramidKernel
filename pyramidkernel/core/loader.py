@@ -31,6 +31,12 @@ class KernelBenchLoadError(ValueError):
     pass
 
 
+def _is_hip_torch_build() -> bool:
+    import torch
+
+    return getattr(torch.version, "hip", None) is not None
+
+
 @dataclass
 class ProblemInfo:
     path: Path
@@ -240,6 +246,21 @@ class KernelBenchLoader:
 
     def _build_cuda_scaffold(self, info: ProblemInfo, level: int, problem_id: int) -> str:
         imports = self._ensure_cuda_imports(info.imports_block)
+        hip_build = _is_hip_torch_build()
+        # include 在 scaffold 构建时按本机 torch 构建选择；编译 flags 在候选运行时判断，
+        # 以保证同一份代码在 CUDA 机器与 DCU（DTK/ROCm 系 torch）上都能走通 load_inline。
+        # ROCm 系 torch 的 cpp_extension 会自动追加 --offload-arch（PYTORCH_ROCM_ARCH 或
+        # 探测可见卡），flags 里无需指定架构。
+        if hip_build:
+            cu_include_lines = ["#include <torch/extension.h>", "#include <hip/hip_runtime.h>"]
+            kernel_comment = "// Add HIP kernels and exported wrapper functions here."
+        else:
+            cu_include_lines = [
+                "#include <torch/extension.h>",
+                "#include <cuda.h>",
+                "#include <cuda_runtime.h>",
+            ]
+            kernel_comment = "// Add CUDA kernels and exported wrapper functions here."
         helper_lines = [
             "_PyramidKernel_EXTENSION = None",
             "",
@@ -256,6 +277,11 @@ class KernelBenchLoader:
             "    digest = hashlib.sha1((_pyramidkernel_strip_anchor_markers(CUDA_CPP_SRC) + _pyramidkernel_strip_anchor_markers(CUDA_CU_SRC)).encode('utf-8')).hexdigest()[:12]",
             f"    return f'pyramidkernel_cuda_l{level}_p{problem_id}_{{digest}}'",
             "",
+            "def _pyramidkernel_extra_cuda_cflags() -> list:",
+            "    if torch.version.hip is not None:",
+            "        return ['-O3', '-ffast-math']",
+            "    return ['-O3', '--use_fast_math']",
+            "",
             "def _pyramidkernel_get_extension():",
             "    global _PyramidKernel_EXTENSION",
             "    if _PyramidKernel_EXTENSION is None:",
@@ -265,7 +291,7 @@ class KernelBenchLoader:
             "            cuda_sources=_pyramidkernel_strip_anchor_markers(CUDA_CU_SRC),",
             "            functions=None,",
             "            extra_cflags=['-O3'],",
-            "            extra_cuda_cflags=['-O3', '--use_fast_math'],",
+            "            extra_cuda_cflags=_pyramidkernel_extra_cuda_cflags(),",
             "            with_cuda=True,",
             "            verbose=False,",
             "        )",
@@ -291,11 +317,9 @@ class KernelBenchLoader:
                 "",
                 'CUDA_CU_SRC = r"""',
                 "# <<<IMPROVE:cuda_cu>>>",
-                "#include <torch/extension.h>",
-                "#include <cuda.h>",
-                "#include <cuda_runtime.h>",
+                *cu_include_lines,
                 "",
-                "// Add CUDA kernels and exported wrapper functions here.",
+                kernel_comment,
                 "# <<<END_IMPROVE>>>",
                 '"""',
                 "",

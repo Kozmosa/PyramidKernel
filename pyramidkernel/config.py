@@ -390,7 +390,7 @@ def _fallback_experiment(name: str) -> dict[str, Any]:
         "workflow": "pyramidkernel",
         "backend": "triton",
         "provider": "mock",
-        "route": "all_mock",
+        "route": "all_inherit",
         "tasks": "kb_smoke",
         "search": "quick",
         "evaluator": "quick",

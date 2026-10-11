@@ -82,6 +82,7 @@ from .providers import (
     OpenAICompatibleProvider,
     RoleRoutedProvider,
 )
+from .providers.transcript import resolve_transcript_path
 from .triton_tasks import build_triton_tasks
 from .utils import shorten_runtime
 
@@ -488,6 +489,9 @@ def _build_provider(args: argparse.Namespace, run_name: str):
     routing = _resolve_provider_routing(args, run_name)
     _prepare_runtime_and_env(args, run_name)
     overrides = _provider_overrides(args, run_name)
+    transcript_path = resolve_transcript_path(getattr(args, "output_dir", None))
+    if transcript_path:
+        overrides = {**overrides, "transcript_path": transcript_path}
     resolved_names = {
         routing["plan_provider"],
         routing["code_provider"],
@@ -513,9 +517,13 @@ def _build_deliberation_runner(
     _prepare_runtime_and_env(args, run_name)
     timeout_seconds = max(1, int(getattr(config, "deliberation_provider_timeout_seconds", 180)))
     providers = {}
+    transcript_path = resolve_transcript_path(getattr(args, "output_dir", None))
     for name in config.deliberation_providers:
         try:
-            providers[name] = _instantiate_single_provider(name, {"timeout_seconds": timeout_seconds})
+            overrides = {"timeout_seconds": timeout_seconds}
+            if transcript_path:
+                overrides["transcript_path"] = transcript_path
+            providers[name] = _instantiate_single_provider(name, overrides)
         except ValueError as exc:
             print(
                 f"[PyramidKernel] Skipping deliberation provider {name}: {exc}",
@@ -929,7 +937,11 @@ def _run_kernelbench_batch(args: argparse.Namespace) -> int:
 def _build_direct_provider(args: argparse.Namespace, run_name: str):
     _prepare_runtime_and_env(args, run_name)
     provider_name = str(getattr(args, "provider", None) or DEFAULT_DIRECT_PROVIDER)
-    provider = _instantiate_single_provider(provider_name, _provider_overrides(args, run_name))
+    overrides = _provider_overrides(args, run_name)
+    transcript_path = resolve_transcript_path(getattr(args, "output_dir", None))
+    if transcript_path:
+        overrides = {**overrides, "transcript_path": transcript_path}
+    provider = _instantiate_single_provider(provider_name, overrides)
     model_override = getattr(args, "model", None)
     if model_override:
         if not hasattr(getattr(provider, "config", None), "model") or not hasattr(provider, "with_overrides"):

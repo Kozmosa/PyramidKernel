@@ -32,6 +32,7 @@ class LocalCudaLLMConfig:
     trust_remote_code: bool = False
     use_chat_template: bool = True
     max_memory_per_gpu: str | None = None
+    transcript_path: str | None = None
 
 
 class LocalCudaLLMProvider(OpenAICompatibleProvider):
@@ -113,6 +114,7 @@ class LocalCudaLLMProvider(OpenAICompatibleProvider):
         user_payload: dict[str, Any],
         temperature: float,
         reasoning_effort: str | None = None,
+        purpose: str = "generic",
     ) -> str:
         del reasoning_effort
         self._ensure_loaded()
@@ -143,16 +145,35 @@ class LocalCudaLLMProvider(OpenAICompatibleProvider):
         last_error: Exception | None = None
         attempts = max(1, int(self.config.max_retries))
         for attempt in range(attempts):
+            started_at = time.time()
             try:
                 with torch.no_grad():
                     output = self._model.generate(**inputs, **generation_kwargs)
                 generated = output[0][inputs["input_ids"].shape[-1] :]
                 text = self._tokenizer.decode(generated, skip_special_tokens=True).strip()
                 if text:
+                    self._record_transcript(
+                        purpose=purpose,
+                        attempt=attempt,
+                        system_prompt=system_prompt,
+                        user_payload=user_payload,
+                        response_text=text,
+                        error=None,
+                        started_at=started_at,
+                    )
                     return text
                 raise RuntimeError("Local cudaLLM returned empty text output.")
             except Exception as exc:
                 last_error = exc
+                self._record_transcript(
+                    purpose=purpose,
+                    attempt=attempt,
+                    system_prompt=system_prompt,
+                    user_payload=user_payload,
+                    response_text=None,
+                    error=f"{type(exc).__name__}: {exc}",
+                    started_at=started_at,
+                )
                 if attempt + 1 < attempts and self.config.retry_backoff_seconds > 0:
                     time.sleep(self.config.retry_backoff_seconds * (attempt + 1))
         if last_error is not None:

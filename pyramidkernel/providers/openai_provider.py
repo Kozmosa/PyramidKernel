@@ -21,6 +21,7 @@ from ..utils import extract_anchor_names
 from .base_provider import AgentProvider
 from .errors import is_transient_provider_error
 from .http_utils import post_json_request, stream_json_events_request
+from .transcript import TranscriptRecorder
 
 
 @dataclass
@@ -45,6 +46,7 @@ class OpenAICompatibleConfig:
     disable_response_storage: bool = False
     responses_fallback_to_chat_completions: bool = True
     user_agent: str = "curl/8.5.0"
+    transcript_path: str | None = None
 
 
 class OpenAICompatibleProvider(AgentProvider):
@@ -54,6 +56,41 @@ class OpenAICompatibleProvider(AgentProvider):
 
     def __init__(self, config: OpenAICompatibleConfig) -> None:
         self.config = self._normalize_config(config)
+
+    def _get_transcript_recorder(self) -> TranscriptRecorder | None:
+        # 惰性构建：子类（claude/gemini/cudallm）不经过本 __init__，config 也可能没有该字段
+        if "_transcript_recorder" not in self.__dict__:
+            path = getattr(self.config, "transcript_path", None)
+            self.__dict__["_transcript_recorder"] = TranscriptRecorder(path) if path else None
+        return self.__dict__["_transcript_recorder"]
+
+    def _record_transcript(
+        self,
+        *,
+        purpose: str,
+        attempt: int,
+        system_prompt: str,
+        user_payload: dict[str, Any],
+        response_text: str | None,
+        error: str | None,
+        started_at: float,
+    ) -> None:
+        recorder = self._get_transcript_recorder()
+        if recorder is None:
+            return
+        recorder.record(
+            provider=self.name,
+            model=str(getattr(self.config, "model", "")),
+            wire_api=str(getattr(self.config, "wire_api", "")),
+            purpose=purpose,
+            attempt=attempt,
+            system_prompt=system_prompt,
+            user_text=_compact_payload_text(user_payload),
+            response_text=response_text,
+            error=error,
+            started_at=started_at,
+            finished_at=time.time(),
+        )
 
     def with_overrides(self, **overrides) -> "OpenAICompatibleProvider":
         return OpenAICompatibleProvider(replace(self.config, **overrides))
@@ -75,7 +112,7 @@ class OpenAICompatibleProvider(AgentProvider):
         reasoning_effort = self.config.reasoning_effort
         if purpose == "direct_kernelbench_baseline":
             reasoning_effort = self.config.code_reasoning_effort or reasoning_effort
-        return self._chat(system_prompt, user_payload, temperature, reasoning_effort=reasoning_effort)
+        return self._chat(system_prompt, user_payload, temperature, reasoning_effort=reasoning_effort, purpose=purpose)
 
     @classmethod
     def from_env(cls, defaults: dict[str, Any] | None = None) -> "OpenAICompatibleProvider":
@@ -215,6 +252,7 @@ class OpenAICompatibleProvider(AgentProvider):
             user_payload=user,
             temperature=self.config.plan_temperature,
             reasoning_effort=self.config.plan_reasoning_effort,
+            purpose="plan",
         )
         data = _parse_json_object(content)
         edits = [
@@ -295,6 +333,7 @@ class OpenAICompatibleProvider(AgentProvider):
             user_payload=user,
             temperature=self.config.code_temperature,
             reasoning_effort=self.config.code_reasoning_effort,
+            purpose="search",
         )
         data = _parse_json_object(content)
         proposal = PlanProposal(
@@ -385,6 +424,7 @@ class OpenAICompatibleProvider(AgentProvider):
             user_payload=user,
             temperature=self.config.code_temperature,
             reasoning_effort=self.config.code_reasoning_effort,
+            purpose="code",
         )
         return _normalize_patch_response(
             response_text=content,
@@ -423,6 +463,7 @@ class OpenAICompatibleProvider(AgentProvider):
             user_payload=user,
             temperature=self.config.debug_temperature,
             reasoning_effort=self.config.debug_reasoning_effort,
+            purpose="debug",
         )
         return _normalize_patch_response(
             response_text=content,
@@ -435,15 +476,17 @@ class OpenAICompatibleProvider(AgentProvider):
         user_payload: dict[str, Any],
         temperature: float,
         reasoning_effort: str | None = None,
+        purpose: str = "generic",
     ) -> str:
         last_error: Exception | None = None
         attempts = max(1, self.config.max_retries)
         for attempt in range(attempts):
+            started_at = time.time()
             try:
                 if self.config.wire_api == "responses":
                     payload = self._responses_request(system_prompt, user_payload, temperature, reasoning_effort)
                     try:
-                        return self._extract_text_from_responses(payload)
+                        text = self._extract_text_from_responses(payload)
                     except RuntimeError as exc:
                         if self._should_fallback_from_responses(payload, exc):
                             payload = self._chat_completions_request(
@@ -452,19 +495,49 @@ class OpenAICompatibleProvider(AgentProvider):
                                 temperature,
                                 reasoning_effort,
                             )
-                            return self._extract_text_from_chat_completions(payload)
-                        raise
-                payload = self._chat_completions_request(
-                    system_prompt,
-                    user_payload,
-                    temperature,
-                    reasoning_effort,
+                            text = self._extract_text_from_chat_completions(payload)
+                        else:
+                            raise
+                else:
+                    payload = self._chat_completions_request(
+                        system_prompt,
+                        user_payload,
+                        temperature,
+                        reasoning_effort,
+                    )
+                    text = self._extract_text_from_chat_completions(payload)
+                self._record_transcript(
+                    purpose=purpose,
+                    attempt=attempt,
+                    system_prompt=system_prompt,
+                    user_payload=user_payload,
+                    response_text=text,
+                    error=None,
+                    started_at=started_at,
                 )
-                return self._extract_text_from_chat_completions(payload)
+                return text
             except TimeoutError as exc:
                 last_error = exc
+                self._record_transcript(
+                    purpose=purpose,
+                    attempt=attempt,
+                    system_prompt=system_prompt,
+                    user_payload=user_payload,
+                    response_text=None,
+                    error=f"{type(exc).__name__}: {exc}",
+                    started_at=started_at,
+                )
             except RuntimeError as exc:
                 last_error = exc
+                self._record_transcript(
+                    purpose=purpose,
+                    attempt=attempt,
+                    system_prompt=system_prompt,
+                    user_payload=user_payload,
+                    response_text=None,
+                    error=f"{type(exc).__name__}: {exc}",
+                    started_at=started_at,
+                )
                 if not _is_retryable_llm_error(exc):
                     raise
             if attempt + 1 < attempts:

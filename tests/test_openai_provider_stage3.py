@@ -248,7 +248,7 @@ class OpenAIProviderStage3Tests(unittest.TestCase):
             "anchor_edits": [{"anchor_name": "cuda_cu", "instruction": "tune block size", "operation": "replace"}],
         }
 
-        def fake_chat(*, system_prompt, user_payload, temperature, reasoning_effort):
+        def fake_chat(*, system_prompt, user_payload, temperature, reasoning_effort, purpose="generic"):
             self.assertIn("diagnostics_profile", user_payload["task_metadata"])
             self.assertIn("If attempt_mode is mutate_champion", system_prompt)
             self.assertIn("single_change_focus", system_prompt)
@@ -295,7 +295,7 @@ class OpenAIProviderStage3Tests(unittest.TestCase):
             champion_summary={"node_id": "n0", "speedup": 2.0},
         )
 
-        def fake_chat(*, system_prompt, user_payload, temperature, reasoning_effort):
+        def fake_chat(*, system_prompt, user_payload, temperature, reasoning_effort, purpose="generic"):
             self.assertIn("plan.single_change_focus", system_prompt)
             self.assertIn("exactly that one local change", system_prompt)
             self.assertEqual(user_payload["plan"]["single_change_focus"], "tune block size")

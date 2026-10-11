@@ -88,7 +88,10 @@ def _strip_python_comments(source_code: str) -> str:
 
 
 def _placeholder_cuda_only(source_code: str) -> bool:
-    has_placeholder = "Add CUDA kernels and exported wrapper functions here" in source_code
+    has_placeholder = (
+        "Add CUDA kernels and exported wrapper functions here" in source_code
+        or "Add HIP kernels and exported wrapper functions here" in source_code
+    )
     if not has_placeholder:
         return False
     has_real_symbol = "__global__" in source_code or re.search(

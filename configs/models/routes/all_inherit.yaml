@@ -1,4 +1,4 @@
-description: Use the mock provider for all roles.
+description: All roles inherit the provider selected by --provider.
 plan_provider: inherit
 code_provider: inherit
 debug_provider: inherit

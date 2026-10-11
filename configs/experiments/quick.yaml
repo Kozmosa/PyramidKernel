@@ -5,7 +5,7 @@ description: Fast smoke configuration for local validation.
 workflow: pyramidkernel
 backend: triton
 provider: mock
-route: all_mock
+route: all_inherit
 tasks: kb_smoke
 search: quick
 evaluator: quick
